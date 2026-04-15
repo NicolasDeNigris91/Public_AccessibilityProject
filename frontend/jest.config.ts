@@ -9,6 +9,9 @@ const config: Config = {
     "\.(css|scss)$": "<rootDir>/__mocks__/styleMock.js",
   },
   testMatch: ["<rootDir>/src/**/*.test.{ts,tsx}"],
+  transform: {
+    "^.+\\.tsx?$": ["ts-jest", { tsconfig: { jsx: "react-jsx" } }],
+  },
 };
 
 export default config;
