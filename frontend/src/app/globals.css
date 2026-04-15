@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-bg: 250 247 242;
+  --color-surface: 255 255 255;
+  --color-text: 31 27 22;
+  --color-muted: 107 99 88;
+  --color-border: 232 226 213;
+}
+
+[data-theme="dark"] {
+  --color-bg: 26 23 20;
+  --color-surface: 35 31 27;
+  --color-text: 245 240 232;
+  --color-muted: 154 144 133;
+  --color-border: 51 48 43;
+}
+
+html {
+  color-scheme: light;
+}
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+body {
+  background: rgb(var(--color-bg));
+  color: rgb(var(--color-text));
+  font-feature-settings: "ss01", "cv11";
+}
+
+*:focus-visible {
+  outline: 2px solid #E8A87C;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Color-blindness simulator filters (applied via class on <html>) */
+.cb-protanopia   { filter: url(#cb-protanopia); }
+.cb-deuteranopia { filter: url(#cb-deuteranopia); }
+.cb-tritanopia   { filter: url(#cb-tritanopia); }
+.cb-achromatopsia{ filter: grayscale(1); }
