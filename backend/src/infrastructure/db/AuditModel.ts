@@ -19,9 +19,9 @@ const ViolationSchema = new Schema(
 
 const AuditSchema = new Schema(
   {
-    publicId: { type: String, unique: true, index: true, required: true },
-    clientId: { type: String, index: true },
-    url: { type: String, required: true, index: true },
+    publicId: { type: String, unique: true, required: true },
+    clientId: { type: String },
+    url: { type: String, required: true },
     status: { type: String, enum: ["queued", "running", "done", "failed"], default: "queued" },
     score: Number,
     totals: {
@@ -37,6 +37,12 @@ const AuditSchema = new Schema(
   },
   { timestamps: true }
 );
+
+// The hot list query is find({ clientId }).sort({ createdAt: -1 }).limit(50) from
+// GET /api/audits. A compound index on (clientId, createdAt desc) serves it
+// directly. By prefix rule it also covers plain clientId lookups, so a separate
+// clientId index would be redundant.
+AuditSchema.index({ clientId: 1, createdAt: -1 });
 
 export type AuditDoc = InferSchemaType<typeof AuditSchema> & { _id: unknown };
 export const AuditModel = model("Audit", AuditSchema);
