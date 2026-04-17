@@ -20,11 +20,6 @@ export default function LandingPage() {
               <Link href="/app">
                 <Button size="lg">{copy.landing.ctaPrimary}</Button>
               </Link>
-              <Link href="/audits/demo">
-                <Button size="lg" variant="secondary">
-                  {copy.landing.ctaSecondary}
-                </Button>
-              </Link>
             </div>
           </div>
         </Container>

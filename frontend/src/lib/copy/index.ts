@@ -14,7 +14,6 @@ export const copy = {
     heroLead:
       "O Euthus audita sites como um usuário real, encontra barreiras de acessibilidade e explica o impacto humano de cada uma.",
     ctaPrimary: "Auditar um site",
-    ctaSecondary: "Ver relatório de exemplo",
     manifestoTitle: "Por que acessibilidade importa",
     manifestoBody:
       "1 em cada 6 pessoas no mundo vive com alguma deficiência. Um site inacessível não é um detalhe técnico: é uma porta fechada.",
