@@ -69,7 +69,10 @@ describe("POST /api/audits", () => {
       .send({ url: "https://example.com" });
 
     expect(res.status).toBe(400);
-    expect(res.body).toEqual({ error: "invalid_client_id" });
+    expect(res.body).toMatchObject({
+      error: { code: "invalid_client_id", message: "invalid_client_id" },
+    });
+    expect(res.body.requestId).toBeDefined();
     expect(AuditModel.create).not.toHaveBeenCalled();
   });
 
@@ -84,7 +87,9 @@ describe("POST /api/audits", () => {
       .send({ url: "http://169.254.169.254/latest/meta-data" });
 
     expect(res.status).toBe(400);
-    expect(res.body).toEqual({ error: "unsafe_url:unsafe_target" });
+    expect(res.body).toMatchObject({
+      error: { code: "unsafe_target" },
+    });
     expect(AuditModel.create).not.toHaveBeenCalled();
     expect(auditQueue.add).not.toHaveBeenCalled();
   });
@@ -129,7 +134,9 @@ describe("GET /api/audits", () => {
   it("returns 400 when X-Client-Id is missing", async () => {
     const res = await request(buildApp()).get("/api/audits");
     expect(res.status).toBe(400);
-    expect(res.body).toEqual({ error: "invalid_client_id" });
+    expect(res.body).toMatchObject({
+      error: { code: "invalid_client_id" },
+    });
     expect(AuditModel.find).not.toHaveBeenCalled();
   });
 });
@@ -154,6 +161,8 @@ describe("GET /api/audits/:publicId", () => {
 
     const res = await request(buildApp()).get("/api/audits/missing");
     expect(res.status).toBe(404);
-    expect(res.body).toEqual({ error: "not_found" });
+    expect(res.body).toMatchObject({
+      error: { code: "not_found" },
+    });
   });
 });

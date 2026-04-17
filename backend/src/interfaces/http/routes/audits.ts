@@ -49,7 +49,7 @@ auditsRouter.post("/", requireClientId, async (req, res) => {
   try {
     await assertSafeUrl(parsed.data.url);
   } catch (err) {
-    if (err instanceof UnsafeUrlError) throw new AppError(400, err.message);
+    if (err instanceof UnsafeUrlError) throw new AppError(400, err.reason);
     throw err;
   }
 

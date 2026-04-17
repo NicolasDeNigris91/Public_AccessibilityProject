@@ -59,7 +59,7 @@ describe("fetcher", () => {
     });
   });
 
-  it("throws on non-2xx", async () => {
+  it("throws on non-2xx with no body (bare-status fallback)", async () => {
     global.fetch = jest.fn().mockResolvedValue(
       new Response("nope", { status: 400 })
     ) as unknown as typeof fetch;
@@ -78,10 +78,38 @@ describe("fetcher", () => {
     });
   });
 
+  it("parses the structured error envelope from the response body", async () => {
+    const body = {
+      error: { code: "unsafe_target", message: "URL points to private network" },
+      requestId: "req-abc-123",
+    };
+    global.fetch = jest.fn().mockResolvedValue(
+      new Response(JSON.stringify(body), {
+        status: 400,
+        headers: { "content-type": "application/json" },
+      })
+    ) as unknown as typeof fetch;
+
+    await expect(fetcher("https://api.example.com/x")).rejects.toMatchObject({
+      name: "ApiError",
+      status: 400,
+      code: "unsafe_target",
+      requestId: "req-abc-123",
+      message: "URL points to private network",
+    });
+  });
+
   it("ApiError is an Error subclass (instanceof check for callers)", () => {
     const err = new ApiError(500);
     expect(err).toBeInstanceOf(Error);
     expect(err).toBeInstanceOf(ApiError);
     expect(err.status).toBe(500);
+  });
+
+  it("ApiError without body leaves code and requestId undefined", () => {
+    const err = new ApiError(500);
+    expect(err.code).toBeUndefined();
+    expect(err.requestId).toBeUndefined();
+    expect(err.message).toBe("API error 500");
   });
 });
