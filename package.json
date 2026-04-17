@@ -2,12 +2,18 @@
   "name": "web-accessibility-tool",
   "private": true,
   "version": "0.1.0",
-  "workspaces": ["backend", "frontend"],
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
   "scripts": {
     "dev:backend": "npm --workspace backend run dev",
     "dev:worker": "npm --workspace backend run worker",
     "dev:frontend": "npm --workspace frontend run dev",
-    "test": "npm --workspace backend test",
+    "test": "npm --workspace backend test && npm --workspace frontend test",
     "lint": "npm --workspace backend run lint && npm --workspace frontend run lint"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2"
   }
 }
