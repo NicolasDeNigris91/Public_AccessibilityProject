@@ -24,6 +24,14 @@ jobs:
       - name: Install
         run: npm ci
 
+      # mongodb-memory-server downloads the mongod binary (~780 MB) on first
+      # use. Cache it so repeat runs skip the download entirely.
+      - name: Cache mongodb-memory-server binary
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/mongodb-binaries
+          key: mongodb-memory-server-${{ runner.os }}
+
       - name: Typecheck
         run: npx tsc --noEmit
         working-directory: backend
