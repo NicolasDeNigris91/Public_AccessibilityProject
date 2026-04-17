@@ -1,4 +1,5 @@
 import { Worker } from "bullmq";
+import mongoose from "mongoose";
 import puppeteer, { Browser } from "puppeteer";
 import { source as axeSource } from "axe-core";
 import { env } from "@/config/env";
@@ -10,6 +11,11 @@ import { AUDIT_QUEUE, AuditJobData } from "@/infrastructure/queue/auditQueue";
 import { assertSafeUrl, isSyncSafeUrl } from "@/application/assertSafeUrl";
 import { calculateScore, countBySeverity } from "@/domain/scoring";
 import { Violation, WcagSeverity } from "@/domain/types";
+
+// Must stay under Railway's default 30s SIGKILL window so cleanup (browser close,
+// mongoose disconnect) has room to run. Jobs that do not finish in time are
+// force-closed; BullMQ re-queues them for the next worker to pick up.
+const SHUTDOWN_TIMEOUT_MS = 25_000;
 
 let browser: Browser | null = null;
 
@@ -143,14 +149,46 @@ async function main() {
 
   worker.on("failed", (job, err) => logger.error({ err, jobId: job?.id }, "job failed"));
 
-  const shutdown = async () => {
-    logger.info("worker shutting down");
-    await worker.close();
-    if (browser) await browser.close().catch(() => {});
-    process.exit(0);
+  let shuttingDown = false;
+  const shutdown = async (signal: NodeJS.Signals) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    logger.info({ signal }, "worker shutting down");
+    let exitCode = 0;
+    try {
+      await drainWithTimeout(worker, SHUTDOWN_TIMEOUT_MS);
+      if (browser) await browser.close().catch((err) =>
+        logger.warn({ err }, "browser close failed")
+      );
+      await mongoose.disconnect().catch((err) =>
+        logger.warn({ err }, "mongoose disconnect failed")
+      );
+    } catch (err) {
+      logger.error({ err }, "error during shutdown");
+      exitCode = 1;
+    } finally {
+      logger.info({ exitCode }, "worker shutdown complete");
+      process.exit(exitCode);
+    }
   };
-  process.on("SIGTERM", shutdown);
-  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", () => void shutdown("SIGTERM"));
+  process.on("SIGINT", () => void shutdown("SIGINT"));
+}
+
+async function drainWithTimeout(worker: Worker, timeoutMs: number): Promise<void> {
+  let timeoutHandle: NodeJS.Timeout | undefined;
+  const timeout = new Promise<"timeout">((resolve) => {
+    timeoutHandle = setTimeout(() => resolve("timeout"), timeoutMs);
+  });
+  const drained = worker.close().then(() => "drained" as const);
+  const outcome = await Promise.race([drained, timeout]);
+  if (timeoutHandle) clearTimeout(timeoutHandle);
+  if (outcome === "timeout") {
+    logger.warn({ timeoutMs }, "drain timed out, force-closing worker");
+    await worker.close(true).catch((err) =>
+      logger.error({ err }, "force close failed")
+    );
+  }
 }
 
 main().catch((err) => {
