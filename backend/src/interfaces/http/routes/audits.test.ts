@@ -14,8 +14,17 @@ jest.mock("@/infrastructure/queue/auditQueue", () => ({
   auditQueue: { add: jest.fn() },
 }));
 
+jest.mock("@/application/assertSafeUrl", () => {
+  const actual = jest.requireActual("@/application/assertSafeUrl");
+  return {
+    ...actual,
+    assertSafeUrl: jest.fn().mockResolvedValue(undefined),
+  };
+});
+
 import { AuditModel } from "@/infrastructure/db/AuditModel";
 import { auditQueue } from "@/infrastructure/queue/auditQueue";
+import { assertSafeUrl, UnsafeUrlError } from "@/application/assertSafeUrl";
 import { auditsRouter } from "./audits";
 import { errorHandler } from "../middlewares/errorHandler";
 
@@ -62,6 +71,22 @@ describe("POST /api/audits", () => {
     expect(res.status).toBe(400);
     expect(res.body).toEqual({ error: "invalid_client_id" });
     expect(AuditModel.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects an unsafe URL with 400 and never enqueues", async () => {
+    (assertSafeUrl as jest.Mock).mockRejectedValueOnce(
+      new UnsafeUrlError("unsafe_target")
+    );
+
+    const res = await request(buildApp())
+      .post("/api/audits")
+      .set("X-Client-Id", VALID_ID)
+      .send({ url: "http://169.254.169.254/latest/meta-data" });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "unsafe_url:unsafe_target" });
+    expect(AuditModel.create).not.toHaveBeenCalled();
+    expect(auditQueue.add).not.toHaveBeenCalled();
   });
 });
 

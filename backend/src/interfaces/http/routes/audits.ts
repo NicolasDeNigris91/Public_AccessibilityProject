@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { v4 as uuid } from "uuid";
 import { z } from "zod";
+import { assertSafeUrl, UnsafeUrlError } from "@/application/assertSafeUrl";
 import { AuditModel } from "@/infrastructure/db/AuditModel";
 import { auditQueue } from "@/infrastructure/queue/auditQueue";
 import { AppError } from "../middlewares/errorHandler";
@@ -44,6 +45,13 @@ const CreateAuditBody = z.object({
 auditsRouter.post("/", requireClientId, async (req, res) => {
   const parsed = CreateAuditBody.safeParse(req.body);
   if (!parsed.success) throw new AppError(400, "invalid_url");
+
+  try {
+    await assertSafeUrl(parsed.data.url);
+  } catch (err) {
+    if (err instanceof UnsafeUrlError) throw new AppError(400, err.message);
+    throw err;
+  }
 
   const publicId = uuid();
   await AuditModel.create({

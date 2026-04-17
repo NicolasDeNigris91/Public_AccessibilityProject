@@ -7,6 +7,7 @@ import { connectMongo } from "@/infrastructure/db/mongo";
 import { AuditModel } from "@/infrastructure/db/AuditModel";
 import { redisConnection } from "@/infrastructure/queue/connection";
 import { AUDIT_QUEUE, AuditJobData } from "@/infrastructure/queue/auditQueue";
+import { assertSafeUrl, isSyncSafeUrl } from "@/application/assertSafeUrl";
 import { calculateScore, countBySeverity } from "@/domain/scoring";
 import { Violation, WcagSeverity } from "@/domain/types";
 
@@ -50,10 +51,31 @@ interface AxeRaw {
 
 async function runAudit(url: string) {
   const start = Date.now();
+  // Re-check the target at execution time in case DNS resolution changed between
+  // intake and dequeue (short-window DNS rebinding).
+  await assertSafeUrl(url);
+
   const b = await getBrowser();
   const page = await b.newPage();
   try {
     await page.setViewport({ width: 1366, height: 900 });
+    // Block any subresource or redirect that tries to reach a literal private IP.
+    // DNS-name subresources are allowed through here; they are a known residual risk
+    // that would need a DNS-aware egress proxy to fully mitigate.
+    await page.setRequestInterception(true);
+    page.on("request", (request) => {
+      const reqUrl = request.url();
+      if (/^(data|blob):/i.test(reqUrl)) {
+        request.continue().catch(() => {});
+        return;
+      }
+      if (!isSyncSafeUrl(reqUrl)) {
+        logger.warn({ blockedUrl: reqUrl, parentUrl: url }, "blocked unsafe subrequest");
+        request.abort("blockedbyclient").catch(() => {});
+        return;
+      }
+      request.continue().catch(() => {});
+    });
     await page.goto(url, { waitUntil: "networkidle2", timeout: env.AUDIT_TIMEOUT_MS });
     await page.evaluate(axeSource);
     const raw = (await page.evaluate(async () => {
