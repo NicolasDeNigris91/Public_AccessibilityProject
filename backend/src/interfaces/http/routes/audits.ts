@@ -4,6 +4,7 @@ import { z } from "zod";
 import { AuditModel } from "@/infrastructure/db/AuditModel";
 import { auditQueue } from "@/infrastructure/queue/auditQueue";
 import { AppError } from "../middlewares/errorHandler";
+import { requireClientId } from "../middlewares/clientId";
 
 export const auditsRouter = Router();
 
@@ -17,6 +18,11 @@ const CreateAuditBody = z.object({
  *   post:
  *     summary: Enqueue a new accessibility audit
  *     tags: [Audits]
+ *     parameters:
+ *       - in: header
+ *         name: X-Client-Id
+ *         required: true
+ *         schema: { type: string, format: uuid }
  *     requestBody:
  *       required: true
  *       content:
@@ -32,20 +38,20 @@ const CreateAuditBody = z.object({
  *     responses:
  *       202:
  *         description: Audit accepted and queued
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 publicId: { type: string }
- *                 status:   { type: string, example: queued }
+ *       400:
+ *         description: Invalid URL or missing client id
  */
-auditsRouter.post("/", async (req, res) => {
+auditsRouter.post("/", requireClientId, async (req, res) => {
   const parsed = CreateAuditBody.safeParse(req.body);
   if (!parsed.success) throw new AppError(400, "invalid_url");
 
   const publicId = uuid();
-  await AuditModel.create({ publicId, url: parsed.data.url, status: "queued" });
+  await AuditModel.create({
+    publicId,
+    clientId: req.clientId,
+    url: parsed.data.url,
+    status: "queued",
+  });
   await auditQueue.add("audit", { publicId, url: parsed.data.url }, { jobId: publicId });
 
   res.status(202).json({ publicId, status: "queued" });
@@ -55,7 +61,7 @@ auditsRouter.post("/", async (req, res) => {
  * @openapi
  * /api/audits/{publicId}:
  *   get:
- *     summary: Get an audit by its public ID
+ *     summary: Get an audit by its public ID (public — shareable URL)
  *     tags: [Audits]
  *     parameters:
  *       - in: path
@@ -76,33 +82,19 @@ auditsRouter.get("/:publicId", async (req, res) => {
  * @openapi
  * /api/audits:
  *   get:
- *     summary: List recent audits (history)
+ *     summary: List recent audits for the caller (scoped by X-Client-Id)
  *     tags: [Audits]
+ *     parameters:
+ *       - in: header
+ *         name: X-Client-Id
+ *         required: true
+ *         schema: { type: string, format: uuid }
  *     responses:
  *       200:
- *         description: List of audit summaries (max 50, newest first)
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 type: object
- *                 properties:
- *                   publicId: { type: string }
- *                   url: { type: string, format: uri }
- *                   status: { type: string, enum: [queued, running, done, failed] }
- *                   score: { type: number, nullable: true }
- *                   totals:
- *                     type: object
- *                     properties:
- *                       critical: { type: integer }
- *                       serious: { type: integer }
- *                       moderate: { type: integer }
- *                       minor: { type: integer }
- *                   createdAt: { type: string, format: date-time }
+ *         description: List of audit summaries (max 50, newest first, owned by this client)
  */
-auditsRouter.get("/", async (_req, res) => {
-  const items = await AuditModel.find()
+auditsRouter.get("/", requireClientId, async (req, res) => {
+  const items = await AuditModel.find({ clientId: req.clientId })
     .sort({ createdAt: -1 })
     .limit(50)
     .select("publicId url status score totals createdAt")
