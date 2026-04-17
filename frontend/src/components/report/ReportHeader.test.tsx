@@ -57,4 +57,12 @@ describe("ReportHeader", () => {
     expect(pdfBtn).toBeDisabled();
     expect(jsonBtn).toBeDisabled();
   });
+
+  it("forwards headingRef to the h1 so the audit page can move focus on navigation", () => {
+    const headingRef: { current: HTMLHeadingElement | null } = { current: null };
+    render(<ReportHeader url={url} score={score} headingRef={headingRef} />);
+    expect(headingRef.current).not.toBeNull();
+    expect(headingRef.current?.tagName).toBe("H1");
+    expect(headingRef.current).toHaveAttribute("tabindex", "-1");
+  });
 });

@@ -1,3 +1,4 @@
+import type { Ref } from "react";
 import { Button } from "@/components/ui/Button";
 import { ScoreDisplay } from "./ScoreDisplay";
 import { copy } from "@/lib/copy";
@@ -7,9 +8,16 @@ interface ReportHeaderProps {
   score: number;
   createdAt?: string;
   onReaudit?: () => void;
+  headingRef?: Ref<HTMLHeadingElement>;
 }
 
-export function ReportHeader({ url, score, createdAt, onReaudit }: ReportHeaderProps) {
+export function ReportHeader({
+  url,
+  score,
+  createdAt,
+  onReaudit,
+  headingRef,
+}: ReportHeaderProps) {
   const formatted = createdAt
     ? new Date(createdAt).toLocaleDateString("pt-BR", {
         day: "2-digit",
@@ -22,7 +30,11 @@ export function ReportHeader({ url, score, createdAt, onReaudit }: ReportHeaderP
     <header className="flex flex-col gap-8 border-b border-line/60 pb-10 md:flex-row md:items-end md:justify-between">
       <div className="flex flex-col gap-3">
         {formatted && <span className="text-xs text-muted">{formatted}</span>}
-        <h1 className="font-serif text-4xl text-ink md:text-5xl">
+        <h1
+          ref={headingRef}
+          tabIndex={-1}
+          className="font-serif text-4xl text-ink outline-none md:text-5xl"
+        >
           <a
             href={url}
             target="_blank"

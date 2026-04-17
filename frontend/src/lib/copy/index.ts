@@ -78,6 +78,9 @@ export const copy = {
       errorHint: "A conexão pode ter falhado. Tente novamente.",
       retry: "Tentar novamente",
       newAudit: "Nova auditoria",
+      crash: "Algo quebrou ao carregar este relatório",
+      crashHint:
+        "Foi um erro inesperado. Tente novamente. Se persistir, a falha pode ser temporária.",
     },
   },
   severity: {

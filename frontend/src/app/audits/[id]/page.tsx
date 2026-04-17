@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode, type Ref } from "react";
 import useSWR from "swr";
 import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
@@ -18,6 +18,15 @@ const SEVERITY_WEIGHT = { critical: 0, serious: 1, moderate: 2, minor: 3 } as co
 export default function AuditDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const reauditInFlight = useRef(false);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+
+  // Move focus to the top heading when the audit id changes (first mount and
+  // after re-audit navigates to a fresh publicId). Screen readers announce the
+  // new page; sighted users see no visual jump because tabIndex=-1 focus is
+  // programmatic only.
+  useEffect(() => {
+    headingRef.current?.focus({ preventScroll: false });
+  }, [params.id]);
 
   const { data, error, isLoading, mutate } = useSWR<AuditDetail>(
     `${API_URL}/api/audits/${params.id}`,
@@ -51,13 +60,14 @@ export default function AuditDetailPage({ params }: { params: { id: string } }) 
 
   switch (state.kind) {
     case "loading":
-      return <StatusShell title={s.loading} />;
+      return <StatusShell title={s.loading} headingRef={headingRef} />;
 
     case "not-found":
       return (
         <StatusShell
           title={s.notFound}
           hint={s.notFoundHint}
+          headingRef={headingRef}
           action={
             <Link href="/app">
               <Button>{s.newAudit}</Button>
@@ -71,15 +81,30 @@ export default function AuditDetailPage({ params }: { params: { id: string } }) 
         <StatusShell
           title={s.error}
           hint={s.errorHint}
+          headingRef={headingRef}
           action={<Button onClick={() => mutate()}>{s.retry}</Button>}
         />
       );
 
     case "queued":
-      return <StatusShell title={s.queued} hint={s.queuedHint} url={state.data.url} />;
+      return (
+        <StatusShell
+          title={s.queued}
+          hint={s.queuedHint}
+          url={state.data.url}
+          headingRef={headingRef}
+        />
+      );
 
     case "running":
-      return <StatusShell title={s.running} hint={s.runningHint} url={state.data.url} />;
+      return (
+        <StatusShell
+          title={s.running}
+          hint={s.runningHint}
+          url={state.data.url}
+          headingRef={headingRef}
+        />
+      );
 
     case "failed":
       return (
@@ -87,6 +112,7 @@ export default function AuditDetailPage({ params }: { params: { id: string } }) 
           title={s.failed}
           hint={s.failedHint}
           url={state.data.url}
+          headingRef={headingRef}
           action={
             <Button onClick={() => reaudit(state.data.url)}>{s.retry}</Button>
           }
@@ -98,6 +124,7 @@ export default function AuditDetailPage({ params }: { params: { id: string } }) 
         <ReportView
           data={state.data}
           onReaudit={() => reaudit(state.data.url)}
+          headingRef={headingRef}
         />
       );
   }
@@ -108,16 +135,24 @@ function StatusShell({
   hint,
   url,
   action,
+  headingRef,
 }: {
   title: string;
   hint?: string;
   url?: string;
   action?: ReactNode;
+  headingRef?: Ref<HTMLHeadingElement>;
 }) {
   return (
     <section className="py-24">
       <Container className="flex flex-col items-start gap-4">
-        <h1 className="font-serif text-3xl text-ink md:text-4xl">{title}</h1>
+        <h1
+          ref={headingRef}
+          tabIndex={-1}
+          className="font-serif text-3xl text-ink outline-none md:text-4xl"
+        >
+          {title}
+        </h1>
         {url && <p className="break-all font-mono text-sm text-muted">{url}</p>}
         {hint && <p className="max-w-prose text-ink/80">{hint}</p>}
         {action && <div className="mt-2">{action}</div>}
@@ -129,9 +164,11 @@ function StatusShell({
 function ReportView({
   data,
   onReaudit,
+  headingRef,
 }: {
   data: AuditDetail;
   onReaudit: () => void;
+  headingRef?: Ref<HTMLHeadingElement>;
 }) {
   const totals = data.totals ?? { critical: 0, serious: 0, moderate: 0, minor: 0 };
   const total = totals.critical + totals.serious + totals.moderate + totals.minor;
@@ -147,6 +184,7 @@ function ReportView({
           score={data.score ?? 0}
           createdAt={data.createdAt}
           onReaudit={onReaudit}
+          headingRef={headingRef}
         />
 
         <div className="flex flex-col gap-6">
