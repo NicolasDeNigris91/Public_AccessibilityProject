@@ -1,5 +1,5 @@
 # --- builder ---
-FROM node:20-slim AS builder
+FROM node:25-slim AS builder
 WORKDIR /app
 COPY package.json tsconfig.json ./
 RUN npm install
@@ -7,7 +7,7 @@ COPY src ./src
 RUN npm run build
 
 # --- runtime (with Chromium for Puppeteer) ---
-FROM node:20-slim
+FROM node:25-slim
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
     NODE_ENV=production
