@@ -1,0 +1,64 @@
+name: Bug report
+description: Report a broken audit, queue stall, or dashboard regression.
+title: "[bug] "
+labels: ["bug", "triage"]
+body:
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - api (Express / Swagger)
+        - worker (BullMQ + Puppeteer + axe-core)
+        - frontend (Next.js dashboard)
+        - mongo persistence / mongoose
+        - redis / queue
+        - docker compose / deploy
+        - docs
+        - other
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction steps
+      description: |
+        Minimal, self-contained. Include the URL audited, the queue state,
+        and any relevant logs from `api`, `worker`, or browser console.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      render: shell
+
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      placeholder: "Linux, Docker 27.x, Node 20, mongo 7, redis 7"
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues and this is not a duplicate.
+          required: true
+        - label: I am not reporting a security vulnerability (those go to SECURITY.md).
+          required: true
