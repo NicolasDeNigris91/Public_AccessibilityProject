@@ -1,5 +1,9 @@
 # Web Accessibility Auditing Tool
 
+[![CI](https://github.com/NicolasDeNigris91/Public_AccessibilityProject/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/NicolasDeNigris91/Public_AccessibilityProject/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/NicolasDeNigris91/Public_AccessibilityProject/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/NicolasDeNigris91/Public_AccessibilityProject/actions/workflows/codeql.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+
 WCAG auditor. Submit a URL, a background worker runs Puppeteer + axe-core, the result is persisted, and the dashboard renders score, history, and a color-blindness simulator.
 
 **Live:** [accessibility.nicolaspilegidenigris.dev](https://accessibility.nicolaspilegidenigris.dev)
