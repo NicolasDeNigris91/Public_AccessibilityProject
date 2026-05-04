@@ -3,7 +3,7 @@ import { v4 as uuid } from "uuid";
 import { z } from "zod";
 import { assertSafeUrl, UnsafeUrlError } from "@/application/assertSafeUrl";
 import { AuditModel } from "@/infrastructure/db/AuditModel";
-import { auditQueue } from "@/infrastructure/queue/auditQueue";
+import { auditQueue, type AuditJobData } from "@/infrastructure/queue/auditQueue";
 import { AppError } from "../middlewares/errorHandler";
 import { requireClientId } from "../middlewares/clientId";
 
@@ -65,11 +65,11 @@ auditsRouter.post("/", requireClientId, async (req, res) => {
     url: parsed.data.url,
     status: "queued",
   });
-  await auditQueue.add(
-    "audit",
-    { publicId, url: parsed.data.url, requestId: req.requestId },
-    { jobId: publicId }
-  );
+  // exactOptionalPropertyTypes forbids passing `requestId: undefined` against
+  // an optional field, so build the payload conditionally.
+  const jobData: AuditJobData = { publicId, url: parsed.data.url };
+  if (req.requestId !== undefined) jobData.requestId = req.requestId;
+  await auditQueue.add("audit", jobData, { jobId: publicId });
 
   res.status(202).json({ publicId, status: "queued" });
 });

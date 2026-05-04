@@ -37,11 +37,13 @@ export function toViolations(raw: AxeRawResult): Violation[] {
     description: v.description,
     helpUrl: v.helpUrl,
     tags: v.tags,
-    nodes: v.nodes.map((n) => ({
-      target: n.target,
-      html: n.html,
-      failureSummary: n.failureSummary,
-    })),
+    nodes: v.nodes.map((n) => {
+      // Drop the optional key entirely when undefined so exactOptionalPropertyTypes
+      // is happy: `{ failureSummary?: string }` rejects `failureSummary: undefined`.
+      const node: Violation["nodes"][number] = { target: n.target, html: n.html };
+      if (n.failureSummary !== undefined) node.failureSummary = n.failureSummary;
+      return node;
+    }),
   }));
 }
 

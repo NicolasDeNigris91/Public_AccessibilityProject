@@ -18,9 +18,10 @@ let browser: Browser | null = null;
 
 async function getBrowser(): Promise<Browser> {
   if (browser && browser.connected) return browser;
-  browser = await puppeteer.launch({
+  // exactOptionalPropertyTypes: omit executablePath when unset instead of
+  // passing undefined. Puppeteer falls back to its bundled binary.
+  const launchOpts: Parameters<typeof puppeteer.launch>[0] = {
     headless: true,
-    executablePath: env.PUPPETEER_EXECUTABLE_PATH || undefined,
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
@@ -32,7 +33,9 @@ async function getBrowser(): Promise<Browser> {
       "--no-first-run",
       "--no-default-browser-check",
     ],
-  });
+  };
+  if (env.PUPPETEER_EXECUTABLE_PATH) launchOpts.executablePath = env.PUPPETEER_EXECUTABLE_PATH;
+  browser = await puppeteer.launch(launchOpts);
   browser.on("disconnected", () => {
     logger.warn("puppeteer disconnected, will relaunch on next job");
     browser = null;

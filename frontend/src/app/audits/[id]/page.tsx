@@ -166,7 +166,7 @@ function ReportView({
 }: {
   data: AuditDetail;
   onReaudit: () => void;
-  headingRef?: Ref<HTMLHeadingElement>;
+  headingRef: Ref<HTMLHeadingElement> | undefined;
 }) {
   const totals = data.totals ?? { critical: 0, serious: 0, moderate: 0, minor: 0 };
   const total = totals.critical + totals.serious + totals.moderate + totals.minor;
