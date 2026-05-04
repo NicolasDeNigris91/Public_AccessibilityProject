@@ -1,12 +1,9 @@
 import { isBlockedIp, isLiteralIp } from "./urlSafety";
 
 describe("isBlockedIp (IPv4)", () => {
-  it.each(["8.8.8.8", "1.1.1.1", "93.184.216.34"])(
-    "allows public unicast %s",
-    (ip) => {
-      expect(isBlockedIp(ip)).toBe(false);
-    }
-  );
+  it.each(["8.8.8.8", "1.1.1.1", "93.184.216.34"])("allows public unicast %s", (ip) => {
+    expect(isBlockedIp(ip)).toBe(false);
+  });
 
   it.each(["127.0.0.1", "127.10.20.30"])("blocks loopback %s", (ip) => {
     expect(isBlockedIp(ip)).toBe(true);
@@ -71,12 +68,9 @@ describe("isBlockedIp (IPv6)", () => {
 });
 
 describe("isBlockedIp (defensive)", () => {
-  it.each(["", "not-an-ip", "999.999.999.999", "::gg"])(
-    "blocks unparseable input %p",
-    (input) => {
-      expect(isBlockedIp(input)).toBe(true);
-    }
-  );
+  it.each(["", "not-an-ip", "999.999.999.999", "::gg"])("blocks unparseable input %p", (input) => {
+    expect(isBlockedIp(input)).toBe(true);
+  });
 });
 
 describe("isLiteralIp", () => {
@@ -87,10 +81,7 @@ describe("isLiteralIp", () => {
     }
   );
 
-  it.each(["example.com", "localhost", "", "not-an-ip"])(
-    "rejects non-literal host %p",
-    (host) => {
-      expect(isLiteralIp(host)).toBe(false);
-    }
-  );
+  it.each(["example.com", "localhost", "", "not-an-ip"])("rejects non-literal host %p", (host) => {
+    expect(isLiteralIp(host)).toBe(false);
+  });
 });

@@ -64,9 +64,7 @@ describe("POST /api/audits", () => {
   });
 
   it("returns 400 when X-Client-Id is missing", async () => {
-    const res = await request(buildApp())
-      .post("/api/audits")
-      .send({ url: "https://example.com" });
+    const res = await request(buildApp()).post("/api/audits").send({ url: "https://example.com" });
 
     expect(res.status).toBe(400);
     expect(res.body).toMatchObject({
@@ -77,9 +75,7 @@ describe("POST /api/audits", () => {
   });
 
   it("rejects an unsafe URL with 400 and never enqueues", async () => {
-    (assertSafeUrl as jest.Mock).mockRejectedValueOnce(
-      new UnsafeUrlError("unsafe_target")
-    );
+    (assertSafeUrl as jest.Mock).mockRejectedValueOnce(new UnsafeUrlError("unsafe_target"));
 
     const res = await request(buildApp())
       .post("/api/audits")
@@ -105,9 +101,7 @@ describe("GET /api/audits", () => {
     };
     (AuditModel.find as jest.Mock).mockReturnValue(chain);
 
-    const res = await request(buildApp())
-      .get("/api/audits")
-      .set("X-Client-Id", VALID_ID);
+    const res = await request(buildApp()).get("/api/audits").set("X-Client-Id", VALID_ID);
 
     expect(res.status).toBe(200);
     expect(AuditModel.find).toHaveBeenCalledWith({ clientId: VALID_ID });
@@ -123,9 +117,7 @@ describe("GET /api/audits", () => {
     };
     (AuditModel.find as jest.Mock).mockReturnValue(chain);
 
-    const res = await request(buildApp())
-      .get("/api/audits")
-      .set("X-Client-Id", OTHER_ID);
+    const res = await request(buildApp()).get("/api/audits").set("X-Client-Id", OTHER_ID);
 
     expect(AuditModel.find).toHaveBeenCalledWith({ clientId: OTHER_ID });
     expect(res.body).toEqual([]);

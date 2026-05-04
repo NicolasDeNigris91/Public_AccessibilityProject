@@ -10,7 +10,10 @@ import { requireClientId } from "../middlewares/clientId";
 export const auditsRouter = Router();
 
 const CreateAuditBody = z.object({
-  url: z.string().url().refine((u) => /^https?:\/\//.test(u), "must be http(s)"),
+  url: z
+    .string()
+    .url()
+    .refine((u) => /^https?:\/\//.test(u), "must be http(s)"),
 });
 
 /**

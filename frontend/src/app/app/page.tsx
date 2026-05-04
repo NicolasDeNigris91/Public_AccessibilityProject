@@ -20,11 +20,9 @@ const STATUS_LABEL: Record<AuditStatus, string> = {
 export default function DashboardPage() {
   const [url, setUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const { data, mutate } = useSWR<AuditSummary[]>(
-    `${API_URL}/api/audits`,
-    fetcher,
-    { refreshInterval: 3000 }
-  );
+  const { data, mutate } = useSWR<AuditSummary[]>(`${API_URL}/api/audits`, fetcher, {
+    refreshInterval: 3000,
+  });
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -46,9 +44,7 @@ export default function DashboardPage() {
     <section className="py-16">
       <Container className="flex flex-col gap-10">
         <header className="flex flex-col gap-3">
-          <h1 className="font-serif text-4xl text-ink md:text-5xl">
-            {copy.dashboard.title}
-          </h1>
+          <h1 className="font-serif text-4xl text-ink md:text-5xl">{copy.dashboard.title}</h1>
           <p className="max-w-prose text-ink/80">{copy.dashboard.lead}</p>
         </header>
 

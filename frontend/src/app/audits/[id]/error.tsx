@@ -25,12 +25,8 @@ export default function AuditDetailError({
   return (
     <section className="py-24">
       <Container className="flex flex-col items-start gap-4">
-        <h1 className="font-serif text-3xl text-ink md:text-4xl">
-          {copy.report.states.crash}
-        </h1>
-        <p className="max-w-prose text-ink/80">
-          {copy.report.states.crashHint}
-        </p>
+        <h1 className="font-serif text-3xl text-ink md:text-4xl">{copy.report.states.crash}</h1>
+        <p className="max-w-prose text-ink/80">{copy.report.states.crashHint}</p>
         <div className="mt-2">
           <Button onClick={reset}>{copy.report.states.retry}</Button>
         </div>

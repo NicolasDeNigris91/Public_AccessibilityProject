@@ -35,9 +35,7 @@ describe("ViolationCard", () => {
 
   it("pluralises the affected-nodes count correctly", () => {
     const { rerender } = render(
-      <ViolationCard
-        violation={violation({ nodes: [{ target: ["a"], html: "<a/>" }] })}
-      />
+      <ViolationCard violation={violation({ nodes: [{ target: ["a"], html: "<a/>" }] })} />
     );
     expect(screen.getByText(copy.report.affectedNodes(1))).toBeInTheDocument();
 
@@ -57,9 +55,7 @@ describe("ViolationCard", () => {
 
   it("renders the human impact text from copy", () => {
     render(<ViolationCard violation={violation({ impact: "moderate" })} />);
-    expect(
-      screen.getByText(copy.severity.moderate.humanImpact)
-    ).toBeInTheDocument();
+    expect(screen.getByText(copy.severity.moderate.humanImpact)).toBeInTheDocument();
   });
 
   it("links to the help URL in a new tab with safe rel", () => {

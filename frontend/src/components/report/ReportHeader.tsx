@@ -11,13 +11,7 @@ interface ReportHeaderProps {
   headingRef?: Ref<HTMLHeadingElement>;
 }
 
-export function ReportHeader({
-  url,
-  score,
-  createdAt,
-  onReaudit,
-  headingRef,
-}: ReportHeaderProps) {
+export function ReportHeader({ url, score, createdAt, onReaudit, headingRef }: ReportHeaderProps) {
   const formatted = createdAt
     ? new Date(createdAt).toLocaleDateString("pt-BR", {
         day: "2-digit",

@@ -1,9 +1,4 @@
-import {
-  UnsafeUrlError,
-  assertSafeUrl,
-  isSyncSafeUrl,
-  type DnsResolver,
-} from "./assertSafeUrl";
+import { UnsafeUrlError, assertSafeUrl, isSyncSafeUrl, type DnsResolver } from "./assertSafeUrl";
 
 const resolverReturning =
   (addresses: string[]): DnsResolver =>
@@ -18,15 +13,12 @@ const publicResolver: DnsResolver = resolverReturning(["93.184.216.34"]);
 
 describe("assertSafeUrl", () => {
   describe("URL shape", () => {
-    it.each(["not a url", "http://", "://no-scheme"])(
-      "rejects invalid URL %p",
-      async (input) => {
-        await expect(assertSafeUrl(input, publicResolver)).rejects.toMatchObject({
-          name: "UnsafeUrlError",
-          reason: "invalid_url",
-        });
-      }
-    );
+    it.each(["not a url", "http://", "://no-scheme"])("rejects invalid URL %p", async (input) => {
+      await expect(assertSafeUrl(input, publicResolver)).rejects.toMatchObject({
+        name: "UnsafeUrlError",
+        reason: "invalid_url",
+      });
+    });
 
     it.each([
       "ftp://example.com",
@@ -56,9 +48,7 @@ describe("assertSafeUrl", () => {
 
   describe("target address policy", () => {
     it("allows a public unicast target", async () => {
-      await expect(
-        assertSafeUrl("https://example.com", publicResolver)
-      ).resolves.toBeUndefined();
+      await expect(assertSafeUrl("https://example.com", publicResolver)).resolves.toBeUndefined();
     });
 
     it.each(["127.0.0.1", "169.254.169.254", "10.0.0.5", "192.168.1.1", "::1", "fe80::1"])(
@@ -72,10 +62,7 @@ describe("assertSafeUrl", () => {
 
     it("blocks if any resolved address is private", async () => {
       await expect(
-        assertSafeUrl(
-          "https://example.com",
-          resolverReturning(["93.184.216.34", "10.0.0.5"])
-        )
+        assertSafeUrl("https://example.com", resolverReturning(["93.184.216.34", "10.0.0.5"]))
       ).rejects.toMatchObject({ reason: "unsafe_target" });
     });
 

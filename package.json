@@ -1,7 +1,7 @@
 {
   "name": "web-accessibility-tool",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "workspaces": [
     "backend",
     "frontend"
@@ -11,9 +11,22 @@
     "dev:worker": "npm --workspace backend run worker",
     "dev:frontend": "npm --workspace frontend run dev",
     "test": "npm --workspace backend test && npm --workspace frontend test",
-    "lint": "npm --workspace backend run lint && npm --workspace frontend run lint"
+    "lint": "npm --workspace backend run lint && npm --workspace frontend run lint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepare": "husky"
   },
   "devDependencies": {
+    "@commitlint/cli": "^19.5.0",
+    "@commitlint/config-conventional": "^19.5.0",
+    "husky": "^9.1.6",
+    "lint-staged": "^15.2.10",
+    "prettier": "^3.3.3",
     "ts-node": "^10.9.2"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,cjs,mjs,json,md,yml,yaml,css}": [
+      "prettier --write"
+    ]
   }
 }

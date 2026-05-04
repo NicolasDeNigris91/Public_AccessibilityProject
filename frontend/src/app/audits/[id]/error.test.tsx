@@ -10,12 +10,8 @@ describe("AuditDetailError (Next.js error boundary)", () => {
 
   it("renders the crash heading and hint", () => {
     render(<AuditDetailError error={new Error("boom")} reset={jest.fn()} />);
-    expect(
-      screen.getByRole("heading", { name: copy.report.states.crash })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(copy.report.states.crashHint)
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: copy.report.states.crash })).toBeInTheDocument();
+    expect(screen.getByText(copy.report.states.crashHint)).toBeInTheDocument();
   });
 
   it("calls reset when the retry button is clicked", async () => {
@@ -23,9 +19,7 @@ describe("AuditDetailError (Next.js error boundary)", () => {
     const user = userEvent.setup();
     render(<AuditDetailError error={new Error("boom")} reset={reset} />);
 
-    await user.click(
-      screen.getByRole("button", { name: copy.report.states.retry })
-    );
+    await user.click(screen.getByRole("button", { name: copy.report.states.retry }));
     expect(reset).toHaveBeenCalledTimes(1);
   });
 

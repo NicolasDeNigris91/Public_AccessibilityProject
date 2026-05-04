@@ -10,12 +10,8 @@ export default function LandingPage() {
       <section className="pt-24 pb-20">
         <Container className="flex flex-col gap-10">
           <div className="max-w-3xl">
-            <h1 className="font-serif text-display text-ink">
-              {copy.brand.tagline}
-            </h1>
-            <p className="mt-6 max-w-prose text-lg text-ink/80">
-              {copy.landing.heroLead}
-            </p>
+            <h1 className="font-serif text-display text-ink">{copy.brand.tagline}</h1>
+            <p className="mt-6 max-w-prose text-lg text-ink/80">{copy.landing.heroLead}</p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link href="/app">
                 <Button size="lg">{copy.landing.ctaPrimary}</Button>
@@ -30,9 +26,7 @@ export default function LandingPage() {
           <h2 className="font-serif text-3xl text-ink md:text-4xl">
             {copy.landing.manifestoTitle}
           </h2>
-          <p className="max-w-prose text-lg text-ink/85">
-            {copy.landing.manifestoBody}
-          </p>
+          <p className="max-w-prose text-lg text-ink/85">{copy.landing.manifestoBody}</p>
         </div>
       </Section>
 

@@ -29,37 +29,37 @@ docker compose up --build
 ```
 
 - Frontend: <http://localhost:3000>
-- API:      <http://localhost:4000>
-- Swagger:  <http://localhost:4000/docs>
-- Health:   <http://localhost:4000/health>
+- API: <http://localhost:4000>
+- Swagger: <http://localhost:4000/docs>
+- Health: <http://localhost:4000/health>
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the system design and [docs/ROADMAP.md](docs/ROADMAP.md) for the incremental build plan.
 
 ## Stack
 
-| Layer | Tech |
-|---|---|
-| Runtime | Node.js 20, Next.js 14, React 18 |
-| Language | TypeScript (strict) |
-| Framework | Express 4, Mongoose 8 |
-| Queue | BullMQ + Redis 7 |
-| Engine | Puppeteer 23, axe-core 4 |
-| DB | MongoDB 7 |
-| Docs | Swagger / OpenAPI |
-| Logging | Pino (structured JSON) |
-| Tests | Jest + Supertest |
-| Container | Docker + docker-compose |
+| Layer     | Tech                             |
+| --------- | -------------------------------- |
+| Runtime   | Node.js 20, Next.js 14, React 18 |
+| Language  | TypeScript (strict)              |
+| Framework | Express 4, Mongoose 8            |
+| Queue     | BullMQ + Redis 7                 |
+| Engine    | Puppeteer 23, axe-core 4         |
+| DB        | MongoDB 7                        |
+| Docs      | Swagger / OpenAPI                |
+| Logging   | Pino (structured JSON)           |
+| Tests     | Jest + Supertest                 |
+| Container | Docker + docker-compose          |
 
 ## Deploy (Railway)
 
 Five services in one Railway project:
 
-| Service | Source | Notes |
-|---|---|---|
-| `api` | `backend/Dockerfile` | exposes HTTP, custom domain |
-| `worker` | `backend/Dockerfile.worker` | queue consumer, Puppeteer |
-| `frontend` | `frontend/Dockerfile` | Next.js 14 dashboard |
-| `mongo` | Railway MongoDB plugin | auto-provisions `MONGO_URL` |
-| `redis` | Railway Redis plugin | auto-provisions `REDIS_URL` |
+| Service    | Source                      | Notes                       |
+| ---------- | --------------------------- | --------------------------- |
+| `api`      | `backend/Dockerfile`        | exposes HTTP, custom domain |
+| `worker`   | `backend/Dockerfile.worker` | queue consumer, Puppeteer   |
+| `frontend` | `frontend/Dockerfile`       | Next.js 14 dashboard        |
+| `mongo`    | Railway MongoDB plugin      | auto-provisions `MONGO_URL` |
+| `redis`    | Railway Redis plugin        | auto-provisions `REDIS_URL` |
 
 Required environment variables per service. See [.env.example](.env.example) for the full list.

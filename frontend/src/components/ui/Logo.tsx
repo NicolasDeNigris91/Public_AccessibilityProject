@@ -53,7 +53,12 @@ export function Logo({ variant = "lockup", size = 28, className }: LogoProps) {
     return (
       <span
         className={className}
-        style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: "0.5rem" }}
+        style={{
+          display: "inline-flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: "0.5rem",
+        }}
       >
         <span style={{ color: "#B8532A", display: "inline-flex" }}>
           <Mark size={size} />
@@ -73,7 +78,10 @@ export function Logo({ variant = "lockup", size = 28, className }: LogoProps) {
       <span style={{ color: "#B8532A", display: "inline-flex" }}>
         <Mark size={size} />
       </span>
-      <span className="font-serif" style={{ fontSize: size * 0.95, lineHeight: 1, letterSpacing: "-0.01em" }}>
+      <span
+        className="font-serif"
+        style={{ fontSize: size * 0.95, lineHeight: 1, letterSpacing: "-0.01em" }}
+      >
         Euthus
       </span>
     </span>

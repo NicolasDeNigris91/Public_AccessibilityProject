@@ -10,9 +10,7 @@ describe("getClientId", () => {
 
   it("generates a new UUID and persists it on first call", () => {
     const id = getClientId();
-    expect(id).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-    );
+    expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
     expect(localStorage.getItem("euthus-client-id")).toBe(id);
   });
 

@@ -5,7 +5,11 @@ import { API_URL } from "@/lib/api";
 import { copy } from "@/lib/copy";
 
 const footerLinks = [
-  { href: "https://github.com/NicolasDeNigris91/AccessibilityProject", label: copy.footer.links.github, external: true },
+  {
+    href: "https://github.com/NicolasDeNigris91/AccessibilityProject",
+    label: copy.footer.links.github,
+    external: true,
+  },
   { href: `${API_URL}/docs`, label: copy.footer.links.apiDocs, external: true },
   { href: "/aprender", label: copy.footer.links.learn, external: false },
 ];
@@ -45,7 +49,7 @@ export function Footer() {
                     {link.label}
                   </Link>
                 </li>
-              ),
+              )
             )}
           </ul>
         </nav>

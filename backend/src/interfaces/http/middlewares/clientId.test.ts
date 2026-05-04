@@ -28,9 +28,7 @@ describe("requireClientId", () => {
     const req = makeReq({});
     const next = jest.fn();
     expect(() => requireClientId(req, res, next as NextFunction)).toThrow(AppError);
-    expect(() => requireClientId(req, res, next as NextFunction)).toThrow(
-      "invalid_client_id"
-    );
+    expect(() => requireClientId(req, res, next as NextFunction)).toThrow("invalid_client_id");
   });
 
   it("throws 400 when header is not a UUID", () => {
