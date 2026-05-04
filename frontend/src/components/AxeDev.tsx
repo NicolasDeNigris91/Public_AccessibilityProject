@@ -10,13 +10,14 @@ export function AxeDev() {
     let cancelled = false;
     (async () => {
       try {
+        // Dynamic imports of optional dev deps; runtime-only, types erased on purpose.
         const React = await import("react");
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const ReactDOM: any = await import("react-dom" as string);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const axeMod: any = await import("@axe-core/react" as string);
+        const ReactDOM = (await import("react-dom" as string)) as unknown;
+        const axeMod = (await import("@axe-core/react" as string)) as unknown;
         if (cancelled) return;
-        const axe = axeMod.default ?? axeMod;
+        const axe = (
+          axeMod as { default?: (...args: unknown[]) => void }
+        ).default ?? (axeMod as (...args: unknown[]) => void);
         axe(React, ReactDOM, 1000);
       } catch {
         // axe not installed, skip silently

@@ -56,7 +56,7 @@ Five services in one Railway project:
 
 | Service | Source | Notes |
 |---|---|---|
-| `api` | `backend/Dockerfile`, `ROLE=api` | exposes HTTP, custom domain |
+| `api` | `backend/Dockerfile` | exposes HTTP, custom domain |
 | `worker` | `backend/Dockerfile.worker` | queue consumer, Puppeteer |
 | `frontend` | `frontend/Dockerfile` | Next.js 14 dashboard |
 | `mongo` | Railway MongoDB plugin | auto-provisions `MONGO_URL` |

@@ -28,11 +28,14 @@ A few notes on how this is put together, mostly for my own future self.
           +------------------------> MongoDB
 ```
 
-## Two processes, one image
+## Two processes, two images
 
-`api` and `worker` are the same Docker image with different `ROLE` env vars. The
-api is stateless and HTTP-only; the worker owns Puppeteer and is the only thing
-that needs Chromium. Scale them independently.
+`api` (`backend/Dockerfile`) is a slim Node image with no Chromium — the API
+never launches a browser. `worker` (`backend/Dockerfile.worker`) is built on
+the official `puppeteer/puppeteer` image, which ships its own Chrome and a
+non-root `pptruser`. Splitting the images keeps the API surface small (no
+chromium binaries on the public-facing container) and lets the two scale
+independently.
 
 ## Folders
 

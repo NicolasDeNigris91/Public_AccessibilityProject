@@ -14,8 +14,6 @@ services:
     build:
       context: ./backend
     env_file: .env
-    environment:
-      ROLE: api
     depends_on: [mongo, redis]
     ports: ["4000:4000"]
     restart: unless-stopped
@@ -27,7 +25,6 @@ services:
     environment:
       NODE_ENV: production
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      ROLE: worker
       MONGO_URI: ${MONGO_URI}
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}

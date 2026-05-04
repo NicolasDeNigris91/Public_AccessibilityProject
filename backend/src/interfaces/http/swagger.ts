@@ -1,6 +1,7 @@
 import swaggerJsdoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
-import { Express } from "express";
+import helmet from "helmet";
+import { Express, RequestHandler } from "express";
 
 const spec = swaggerJsdoc({
   definition: {
@@ -78,7 +79,22 @@ const spec = swaggerJsdoc({
   apis: ["./src/interfaces/http/routes/*.ts", "./dist/interfaces/http/routes/*.js"],
 });
 
+// Swagger UI ships inline scripts/styles that the strict default CSP blocks.
+// Restrict the relaxed policy to the /docs subtree so the rest of the API
+// keeps its hardened headers.
+const swaggerCsp: RequestHandler = helmet({
+  contentSecurityPolicy: {
+    useDefaults: true,
+    directives: {
+      "script-src": ["'self'", "'unsafe-inline'"],
+      "style-src": ["'self'", "'unsafe-inline'"],
+      "img-src": ["'self'", "data:", "https://validator.swagger.io"],
+      "connect-src": ["'self'"],
+    },
+  },
+});
+
 export function mountSwagger(app: Express) {
-  app.use("/docs", swaggerUi.serve, swaggerUi.setup(spec));
+  app.use("/docs", swaggerCsp, swaggerUi.serve, swaggerUi.setup(spec));
   app.get("/openapi.json", (_req, res) => res.json(spec));
 }
