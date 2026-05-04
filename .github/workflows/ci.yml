@@ -36,6 +36,9 @@ jobs:
         run: npx tsc --noEmit
         working-directory: backend
 
+      - name: Lint
+        run: npm run lint --workspace backend
+
       - name: Test
         run: npm test --workspace backend
 
@@ -55,6 +58,9 @@ jobs:
       - name: Typecheck
         run: npx tsc --noEmit
         working-directory: frontend
+
+      - name: Lint
+        run: npm run lint --workspace frontend
 
       - name: Test
         run: npm test --workspace frontend
