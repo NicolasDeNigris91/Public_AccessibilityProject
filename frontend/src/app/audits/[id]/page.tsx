@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type ReactNode, type Ref } from "react";
+import { useEffect, useRef, useState, type Ref } from "react";
 import useSWR from "swr";
 import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
@@ -13,6 +13,7 @@ import { deriveAuditState, pollingIntervalFor } from "@/lib/auditState";
 import { copy } from "@/lib/copy";
 import { submitErrorMessage } from "@/lib/errorMessages";
 import type { AuditDetail } from "@/lib/types";
+import { ReauditAlert, StatusShell } from "./StatusShell";
 
 const SEVERITY_WEIGHT = { critical: 0, serious: 1, moderate: 2, minor: 3 } as const;
 
@@ -125,51 +126,6 @@ export default function AuditDetailPage({ params }: { params: { id: string } }) 
         />
       );
   }
-}
-
-function ReauditAlert({ message }: { message: string }) {
-  return (
-    <div
-      role="alert"
-      className="rounded border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-900 dark:border-rose-800/60 dark:bg-rose-950/40 dark:text-rose-100"
-    >
-      {message}
-    </div>
-  );
-}
-
-function StatusShell({
-  title,
-  hint,
-  url,
-  action,
-  alert,
-  headingRef,
-}: {
-  title: string;
-  hint?: string;
-  url?: string;
-  action?: ReactNode;
-  alert?: string | null;
-  headingRef?: Ref<HTMLHeadingElement>;
-}) {
-  return (
-    <section className="py-24">
-      <Container className="flex flex-col items-start gap-4">
-        <h1
-          ref={headingRef}
-          tabIndex={-1}
-          className="font-serif text-3xl text-ink outline-none md:text-4xl"
-        >
-          {title}
-        </h1>
-        {url && <p className="break-all font-mono text-sm text-muted">{url}</p>}
-        {hint && <p className="max-w-prose text-ink/80">{hint}</p>}
-        {action && <div className="mt-2">{action}</div>}
-        {alert && <ReauditAlert message={alert} />}
-      </Container>
-    </section>
-  );
 }
 
 function ReportView({
