@@ -34,7 +34,14 @@ jobs:
         uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
-          queries: security-and-quality
+          # Per-language config selection: javascript-typescript pulls
+          # the project's full query selection (security-and-quality +
+          # security-extended + custom euthus queries) from the
+          # version-controlled config file. The `actions` analyzer has
+          # no codebase-specific custom queries, so it sticks with the
+          # default suite via the inline `queries` selection.
+          config-file: ${{ matrix.language == 'javascript-typescript' && './.github/codeql/codeql-config.yml' || '' }}
+          queries: ${{ matrix.language == 'actions' && 'security-and-quality' || '' }}
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@v3

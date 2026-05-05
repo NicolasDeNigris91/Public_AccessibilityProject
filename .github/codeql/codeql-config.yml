@@ -1,0 +1,39 @@
+# CodeQL config — version-controlled query selection + path filters.
+# Loaded by .github/workflows/codeql.yml via the `config-file` input.
+#
+# Why this exists when the workflow already passes `queries: security-and-quality`:
+# - `security-extended` adds higher-recall (and slightly higher false-positive)
+#   queries on top of `security-and-quality`. Worth running on this codebase
+#   because the threat model (user-supplied URLs hitting Puppeteer) is
+#   exactly what the extended suite is designed to catch.
+# - Path filters keep the analysis fast and noise-free: vendored, generated
+#   and dependency code is excluded so an alert on `node_modules/` cannot
+#   drown out a real finding in `backend/src/`.
+# - Custom queries live alongside this file under `queries/` and are
+#   enabled by name below.
+
+name: "Euthus CodeQL config"
+
+queries:
+  - uses: security-and-quality
+  - uses: security-extended
+  # Project-specific custom queries — see queries/ folder.
+  - uses: ./queries/dns-outside-ssrf-boundary.ql
+
+paths:
+  - backend/src
+  - frontend/src
+
+# `paths-ignore` is anchored at repo root and applies inside the `paths`
+# above too. Matches both literal directories and glob patterns.
+paths-ignore:
+  - "**/node_modules/**"
+  - "**/dist/**"
+  - "**/.next/**"
+  - "**/coverage/**"
+  - "**/playwright-report/**"
+  - "**/test-results/**"
+  - "**/*.test.ts"
+  - "**/*.test.tsx"
+  - "**/__mocks__/**"
+  - "backend/reports/**"
