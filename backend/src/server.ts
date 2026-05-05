@@ -15,6 +15,7 @@ import { auditsRouter } from "@/interfaces/http/routes/audits";
 import { errorHandler } from "@/interfaces/http/middlewares/errorHandler";
 import { requestId } from "@/interfaces/http/middlewares/requestId";
 import { mountSwagger } from "@/interfaces/http/swagger";
+import { mountQueuesUI } from "@/interfaces/http/admin/queuesUI";
 import { auditQueue } from "@/infrastructure/queue/auditQueue";
 import { httpMetricsMiddleware } from "@/infrastructure/metrics/httpMetrics";
 import { registry } from "@/infrastructure/metrics/registry";
@@ -145,6 +146,18 @@ async function main() {
   app.use("/api/audits", auditsRouter);
   // Swagger UI requires inline styles; relax CSP only on the /docs subtree.
   mountSwagger(app);
+  // Bull-Board admin UI behind basic auth. Skipped silently if the
+  // ADMIN_USER / ADMIN_PASS env pair isn't configured, so a forgotten
+  // env in prod never serves the admin UI without credentials.
+  const adminMounted = mountQueuesUI(app, {
+    user: env.ADMIN_USER,
+    pass: env.ADMIN_PASS,
+  });
+  if (adminMounted) {
+    logger.info("admin queues UI mounted at /admin/queues");
+  } else {
+    logger.info("admin queues UI not mounted (ADMIN_USER / ADMIN_PASS not set)");
+  }
   app.use(errorHandler);
 
   const queueDepthHandle = startQueueDepthSampler(auditQueue);

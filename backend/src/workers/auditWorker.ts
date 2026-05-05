@@ -15,8 +15,9 @@ import { classifySubrequest } from "@/application/subrequestPolicy";
 import { buildAuditResult, type AxeRawResult } from "@/domain/axeResult";
 import { puppeteerBrowserRelaunchTotal, registry } from "@/infrastructure/metrics/registry";
 import { startQueueDepthSampler } from "@/infrastructure/metrics/queueDepth";
-import { auditQueue } from "@/infrastructure/queue/auditQueue";
+import { auditDeadQueue, auditQueue } from "@/infrastructure/queue/auditQueue";
 import { processAuditJob } from "./dispatch";
+import { moveToDeadLetterIfFinal } from "./dlq";
 
 // Leave a few seconds for browser close + mongoose disconnect before SIGKILL.
 const SHUTDOWN_TIMEOUT_MS = 25_000;
@@ -158,7 +159,10 @@ async function main() {
     }
   );
 
-  worker.on("failed", (job, err) => logger.error({ err, jobId: job?.id }, "job failed"));
+  worker.on("failed", (job, err) => {
+    logger.error({ err, jobId: job?.id }, "job failed");
+    void moveToDeadLetterIfFinal(job, err, { deadQueue: auditDeadQueue, logger });
+  });
 
   let shuttingDown = false;
   const shutdown = async (signal: NodeJS.Signals) => {
