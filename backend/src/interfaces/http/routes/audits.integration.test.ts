@@ -128,17 +128,11 @@ describe("GET /api/audits (integration)", () => {
       },
     ]);
 
-    const mine = await request(buildApp())
-      .get("/api/audits")
-      .set("X-Client-Id", VALID_ID);
-    const theirs = await request(buildApp())
-      .get("/api/audits")
-      .set("X-Client-Id", OTHER_ID);
+    const mine = await request(buildApp()).get("/api/audits").set("X-Client-Id", VALID_ID);
+    const theirs = await request(buildApp()).get("/api/audits").set("X-Client-Id", OTHER_ID);
 
     expect(mine.status).toBe(200);
-    expect(mine.body.map((a: { publicId: string }) => a.publicId).sort()).toEqual(
-      ["a", "b"]
-    );
+    expect(mine.body.map((a: { publicId: string }) => a.publicId).sort()).toEqual(["a", "b"]);
     expect(theirs.body.map((a: { publicId: string }) => a.publicId)).toEqual(["c"]);
   });
 
@@ -161,14 +155,9 @@ describe("GET /api/audits (integration)", () => {
       },
     ]);
 
-    const res = await request(buildApp())
-      .get("/api/audits")
-      .set("X-Client-Id", VALID_ID);
+    const res = await request(buildApp()).get("/api/audits").set("X-Client-Id", VALID_ID);
 
-    expect(res.body.map((a: { publicId: string }) => a.publicId)).toEqual([
-      "new",
-      "old",
-    ]);
+    expect(res.body.map((a: { publicId: string }) => a.publicId)).toEqual(["new", "old"]);
   });
 
   it("caps results at 50", async () => {
@@ -180,9 +169,7 @@ describe("GET /api/audits (integration)", () => {
     }));
     await AuditModel.create(docs);
 
-    const res = await request(buildApp())
-      .get("/api/audits")
-      .set("X-Client-Id", VALID_ID);
+    const res = await request(buildApp()).get("/api/audits").set("X-Client-Id", VALID_ID);
 
     expect(res.body).toHaveLength(50);
   });

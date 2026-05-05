@@ -15,9 +15,9 @@ export function AxeDev() {
         const ReactDOM = (await import("react-dom" as string)) as unknown;
         const axeMod = (await import("@axe-core/react" as string)) as unknown;
         if (cancelled) return;
-        const axe = (
-          axeMod as { default?: (...args: unknown[]) => void }
-        ).default ?? (axeMod as (...args: unknown[]) => void);
+        const axe =
+          (axeMod as { default?: (...args: unknown[]) => void }).default ??
+          (axeMod as (...args: unknown[]) => void);
         axe(React, ReactDOM, 1000);
       } catch {
         // axe not installed, skip silently

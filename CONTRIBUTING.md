@@ -28,8 +28,8 @@ docker compose up --build
 ```
 
 - Frontend: <http://localhost:3000>
-- API:      <http://localhost:4000>
-- Swagger:  <http://localhost:4000/docs>
+- API: <http://localhost:4000>
+- Swagger: <http://localhost:4000/docs>
 
 For unit tests without docker:
 
@@ -41,12 +41,12 @@ npm test --workspace frontend
 
 ## Test bar
 
-| Change touches            | Required                                                        |
-| ------------------------- | --------------------------------------------------------------- |
-| `backend/`                | `npx tsc --noEmit` + `npm test --workspace backend`             |
-| `frontend/`               | `npx tsc --noEmit` + `npm test --workspace frontend` + `build`  |
-| Worker / Puppeteer / axe  | The above + a manual end-to-end audit through the dashboard     |
-| docker-compose / deploy   | `docker compose up --build` boots clean and the e2e flow works  |
+| Change touches           | Required                                                       |
+| ------------------------ | -------------------------------------------------------------- |
+| `backend/`               | `npx tsc --noEmit` + `npm test --workspace backend`            |
+| `frontend/`              | `npx tsc --noEmit` + `npm test --workspace frontend` + `build` |
+| Worker / Puppeteer / axe | The above + a manual end-to-end audit through the dashboard    |
+| docker-compose / deploy  | `docker compose up --build` boots clean and the e2e flow works |
 
 CI runs the same matrix on every PR.
 

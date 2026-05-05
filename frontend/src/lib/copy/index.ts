@@ -20,8 +20,16 @@ export const copy = {
     howItWorksTitle: "Como funciona",
     steps: [
       { n: "01", title: "Você envia uma URL", body: "Qualquer página pública." },
-      { n: "02", title: "Euthus navega como um usuário real", body: "Com um navegador completo, executa axe-core e captura evidência visual." },
-      { n: "03", title: "Você recebe um relatório", body: "Barreiras agrupadas por severidade, com impacto humano e como corrigir." },
+      {
+        n: "02",
+        title: "Euthus navega como um usuário real",
+        body: "Com um navegador completo, executa axe-core e captura evidência visual.",
+      },
+      {
+        n: "03",
+        title: "Você recebe um relatório",
+        body: "Barreiras agrupadas por severidade, com impacto humano e como corrigir.",
+      },
     ],
     forWhoTitle: "Pra quem é",
     audiences: [
@@ -69,8 +77,7 @@ export const copy = {
       runningHint:
         "Costuma levar cerca de 30 segundos. Pode deixar a aba aberta. Atualizamos sozinhos.",
       failed: "A auditoria falhou",
-      failedHint:
-        "Algo deu errado ao processar esta URL. Você pode tentar novamente.",
+      failedHint: "Algo deu errado ao processar esta URL. Você pode tentar novamente.",
       notFound: "Relatório não encontrado",
       notFoundHint:
         "Este link pode estar expirado ou incorreto. Que tal iniciar uma nova auditoria?",

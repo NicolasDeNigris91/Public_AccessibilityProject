@@ -17,13 +17,7 @@ describe("ReportHeader", () => {
   });
 
   it("formats createdAt in pt-BR", () => {
-    render(
-      <ReportHeader
-        url={url}
-        score={score}
-        createdAt="2026-04-17T10:00:00.000Z"
-      />
-    );
+    render(<ReportHeader url={url} score={score} createdAt="2026-04-17T10:00:00.000Z" />);
     expect(screen.getByText(/17 de abril de 2026/i)).toBeInTheDocument();
   });
 
@@ -37,17 +31,13 @@ describe("ReportHeader", () => {
     const user = userEvent.setup();
     render(<ReportHeader url={url} score={score} onReaudit={onReaudit} />);
 
-    await user.click(
-      screen.getByRole("button", { name: copy.report.reauditButton })
-    );
+    await user.click(screen.getByRole("button", { name: copy.report.reauditButton }));
     expect(onReaudit).toHaveBeenCalledTimes(1);
   });
 
   it("hides the re-audit button when onReaudit is not provided", () => {
     render(<ReportHeader url={url} score={score} />);
-    expect(
-      screen.queryByRole("button", { name: copy.report.reauditButton })
-    ).toBeNull();
+    expect(screen.queryByRole("button", { name: copy.report.reauditButton })).toBeNull();
   });
 
   it("disables export placeholders", () => {

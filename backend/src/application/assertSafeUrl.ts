@@ -20,8 +20,7 @@ export type DnsResolver = (hostname: string) => Promise<Array<{ address: string 
 
 const ALLOWED_PROTOCOLS: ReadonlySet<string> = new Set(["http:", "https:"]);
 
-const defaultResolver: DnsResolver = (hostname) =>
-  dns.lookup(hostname, { all: true });
+const defaultResolver: DnsResolver = (hostname) => dns.lookup(hostname, { all: true });
 
 function stripBrackets(host: string): string {
   return host.replace(/^\[|\]$/g, "");

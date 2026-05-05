@@ -22,9 +22,7 @@ describe("requestId middleware", () => {
   });
 
   it("reuses a sane incoming header", async () => {
-    const res = await request(buildApp())
-      .get("/echo")
-      .set("X-Request-Id", "upstream-abc-123");
+    const res = await request(buildApp()).get("/echo").set("X-Request-Id", "upstream-abc-123");
     expect(res.body.requestId).toBe("upstream-abc-123");
     expect(res.headers["x-request-id"]).toBe("upstream-abc-123");
   });
@@ -45,10 +43,7 @@ describe("requestId middleware", () => {
 
   it("issues different ids per request", async () => {
     const app = buildApp();
-    const [a, b] = await Promise.all([
-      request(app).get("/echo"),
-      request(app).get("/echo"),
-    ]);
+    const [a, b] = await Promise.all([request(app).get("/echo"), request(app).get("/echo")]);
     expect(a.body.requestId).not.toBe(b.body.requestId);
   });
 });

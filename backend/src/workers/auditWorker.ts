@@ -96,17 +96,11 @@ async function main() {
       await AuditModel.updateOne({ publicId }, { $set: { status: "running" } });
       try {
         const result = await runAudit(url);
-        await AuditModel.updateOne(
-          { publicId },
-          { $set: { status: "done", ...result } }
-        );
+        await AuditModel.updateOne({ publicId }, { $set: { status: "done", ...result } });
         jobLogger.info({ score: result.score }, "audit job done");
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        await AuditModel.updateOne(
-          { publicId },
-          { $set: { status: "failed", error: message } }
-        );
+        await AuditModel.updateOne({ publicId }, { $set: { status: "failed", error: message } });
         jobLogger.error({ err }, "audit job failed");
         throw err;
       }
@@ -127,12 +121,11 @@ async function main() {
     let exitCode = 0;
     try {
       await drainWithTimeout(worker, SHUTDOWN_TIMEOUT_MS);
-      if (browser) await browser.close().catch((err) =>
-        logger.warn({ err }, "browser close failed")
-      );
-      await mongoose.disconnect().catch((err) =>
-        logger.warn({ err }, "mongoose disconnect failed")
-      );
+      if (browser)
+        await browser.close().catch((err) => logger.warn({ err }, "browser close failed"));
+      await mongoose
+        .disconnect()
+        .catch((err) => logger.warn({ err }, "mongoose disconnect failed"));
     } catch (err) {
       logger.error({ err }, "error during shutdown");
       exitCode = 1;
@@ -155,9 +148,7 @@ async function drainWithTimeout(worker: Worker, timeoutMs: number): Promise<void
   if (timeoutHandle) clearTimeout(timeoutHandle);
   if (outcome === "timeout") {
     logger.warn({ timeoutMs }, "drain timed out, force-closing worker");
-    await worker.close(true).catch((err) =>
-      logger.error({ err }, "force close failed")
-    );
+    await worker.close(true).catch((err) => logger.error({ err }, "force close failed"));
   }
 }
 

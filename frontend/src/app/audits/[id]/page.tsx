@@ -113,9 +113,7 @@ export default function AuditDetailPage({ params }: { params: { id: string } }) 
           hint={s.failedHint}
           url={state.data.url}
           headingRef={headingRef}
-          action={
-            <Button onClick={() => reaudit(state.data.url)}>{s.retry}</Button>
-          }
+          action={<Button onClick={() => reaudit(state.data.url)}>{s.retry}</Button>}
         />
       );
 
@@ -195,9 +193,7 @@ function ReportView({
         </div>
 
         <div className="flex flex-col gap-4">
-          <h2 className="font-serif text-2xl text-ink">
-            {copy.report.violationsTitle}
-          </h2>
+          <h2 className="font-serif text-2xl text-ink">{copy.report.violationsTitle}</h2>
           {sorted.length === 0 ? (
             <p className="rounded border border-dashed border-line py-12 text-center text-muted">
               {copy.report.emptyViolations}

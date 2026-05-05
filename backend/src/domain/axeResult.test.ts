@@ -18,9 +18,7 @@ const axeViolation = (
   ...overrides,
 });
 
-const axeRaw = (
-  overrides: Partial<AxeRawResult> = {}
-): AxeRawResult => ({
+const axeRaw = (overrides: Partial<AxeRawResult> = {}): AxeRawResult => ({
   violations: [],
   passes: [],
   ...overrides,
@@ -49,17 +47,13 @@ describe("toViolations", () => {
   it.each(["critical", "serious", "moderate", "minor"] as const)(
     "preserves impact %p verbatim",
     (impact) => {
-      const [v] = toViolations(
-        axeRaw({ violations: [axeViolation({ impact })] })
-      );
+      const [v] = toViolations(axeRaw({ violations: [axeViolation({ impact })] }));
       expect(v.impact).toBe(impact);
     }
   );
 
   it("defaults null impact to minor so scoring stays bounded", () => {
-    const [v] = toViolations(
-      axeRaw({ violations: [axeViolation({ impact: null })] })
-    );
+    const [v] = toViolations(axeRaw({ violations: [axeViolation({ impact: null })] }));
     expect(v.impact).toBe("minor");
   });
 
@@ -111,9 +105,7 @@ describe("buildAuditResult", () => {
   });
 
   it("counts passes as the length of the axe passes array", () => {
-    const out = buildAuditResult(
-      axeRaw({ passes: [{}, {}, {}, {}, {}] })
-    );
+    const out = buildAuditResult(axeRaw({ passes: [{}, {}, {}, {}, {}] }));
     expect(out.passes).toBe(5);
   });
 

@@ -139,12 +139,10 @@ async function main() {
       await new Promise<void>((resolve, reject) =>
         server.close((err) => (err ? reject(err) : resolve()))
       );
-      await mongoose.disconnect().catch((err) =>
-        logger.warn({ err }, "mongoose disconnect failed")
-      );
-      await redisConnection.quit().catch((err) =>
-        logger.warn({ err }, "redis quit failed")
-      );
+      await mongoose
+        .disconnect()
+        .catch((err) => logger.warn({ err }, "mongoose disconnect failed"));
+      await redisConnection.quit().catch((err) => logger.warn({ err }, "redis quit failed"));
     } catch (err) {
       logger.error({ err }, "error during shutdown");
       exitCode = 1;

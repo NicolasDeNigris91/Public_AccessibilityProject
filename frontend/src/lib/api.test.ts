@@ -10,9 +10,11 @@ describe("apiFetch", () => {
   });
 
   it("adds X-Client-Id header on GET", async () => {
-    const mock = jest.fn().mockResolvedValue(
-      new Response("{}", { status: 200, headers: { "content-type": "application/json" } })
-    );
+    const mock = jest
+      .fn()
+      .mockResolvedValue(
+        new Response("{}", { status: 200, headers: { "content-type": "application/json" } })
+      );
     global.fetch = mock as unknown as typeof fetch;
 
     await apiFetch("https://api.example.com/x");
@@ -60,17 +62,17 @@ describe("fetcher", () => {
   });
 
   it("throws on non-2xx with no body (bare-status fallback)", async () => {
-    global.fetch = jest.fn().mockResolvedValue(
-      new Response("nope", { status: 400 })
-    ) as unknown as typeof fetch;
+    global.fetch = jest
+      .fn()
+      .mockResolvedValue(new Response("nope", { status: 400 })) as unknown as typeof fetch;
 
     await expect(fetcher("https://api.example.com/x")).rejects.toThrow("API error 400");
   });
 
   it("throws ApiError carrying the status code", async () => {
-    global.fetch = jest.fn().mockResolvedValue(
-      new Response("nope", { status: 404 })
-    ) as unknown as typeof fetch;
+    global.fetch = jest
+      .fn()
+      .mockResolvedValue(new Response("nope", { status: 404 })) as unknown as typeof fetch;
 
     await expect(fetcher("https://api.example.com/x")).rejects.toMatchObject({
       name: "ApiError",

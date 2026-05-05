@@ -6,18 +6,18 @@
 
 ## Sumário executivo
 
-| # | Dimensão                       | Nota |  Tendência                                                          |
-| - | ------------------------------ | ---- | ------------------------------------------------------------------- |
-| 1 | Testes                         | 2.5  | Núcleo puro bem testado; worker e e2e ausentes.                     |
-| 2 | Observabilidade                | 1.5  | Logs estruturados ok; sem métricas, sem tracing, sem SLO.           |
-| 3 | Confiabilidade                 | 3.0  | Worker resiliente; API sem graceful shutdown; sem DLQ explícita.    |
-| 4 | Segurança                      | 3.0  | SSRF defesa em 3 camadas; CSP desligado global; sem SCA/secret-scan.|
-| 5 | Performance                    | 2.5  | Browser reusado; sem context isolation; sem Lighthouse; sem CWV.    |
-| 6 | Acessibilidade do próprio app  | 2.0  | Estrutura ok, mas axe/pa11y não rodam no CI da própria ferramenta.  |
-| 7 | DX / qualidade de código       | 2.0  | TS strict; `noUncheckedIndexedAccess` off; sem hooks, sem commitlint, lint backend quebrado.|
-| 8 | Documentação / onboarding      | 3.0  | README/ARCHITECTURE/SECURITY sólidos; sem ADRs nem runbooks.        |
-| 9 | Release / deploy               | 2.0  | Sem preview envs; sem migration framework; sem rollback documentado.|
-|   | **Média ponderada**            | **2.4** | Base arquitetural acima da média de portfolio; falta camada de produção. |
+| #   | Dimensão                      | Nota    | Tendência                                                                                    |
+| --- | ----------------------------- | ------- | -------------------------------------------------------------------------------------------- |
+| 1   | Testes                        | 2.5     | Núcleo puro bem testado; worker e e2e ausentes.                                              |
+| 2   | Observabilidade               | 1.5     | Logs estruturados ok; sem métricas, sem tracing, sem SLO.                                    |
+| 3   | Confiabilidade                | 3.0     | Worker resiliente; API sem graceful shutdown; sem DLQ explícita.                             |
+| 4   | Segurança                     | 3.0     | SSRF defesa em 3 camadas; CSP desligado global; sem SCA/secret-scan.                         |
+| 5   | Performance                   | 2.5     | Browser reusado; sem context isolation; sem Lighthouse; sem CWV.                             |
+| 6   | Acessibilidade do próprio app | 2.0     | Estrutura ok, mas axe/pa11y não rodam no CI da própria ferramenta.                           |
+| 7   | DX / qualidade de código      | 2.0     | TS strict; `noUncheckedIndexedAccess` off; sem hooks, sem commitlint, lint backend quebrado. |
+| 8   | Documentação / onboarding     | 3.0     | README/ARCHITECTURE/SECURITY sólidos; sem ADRs nem runbooks.                                 |
+| 9   | Release / deploy              | 2.0     | Sem preview envs; sem migration framework; sem rollback documentado.                         |
+|     | **Média ponderada**           | **2.4** | Base arquitetural acima da média de portfolio; falta camada de produção.                     |
 
 **Leitura geral.** Este projeto já fez o trabalho difícil que a maioria dos projetos pula: arquitetura limpa com `domain/` puro, propagação de `requestId` HTTP→fila→worker, idempotência via `jobId = publicId`, três camadas de defesa anti-SSRF, contêineres não-root, `helmet`, `rate-limit`, `mongodb-memory-server` para integração com Mongo real (não mock), CodeQL e Dependabot. Isso é raro num projeto de portfolio.
 
@@ -29,17 +29,17 @@ O que falta é a **camada de produção endurecida**: métricas e tracing, e2e d
 
 ### Estado atual
 
-| Camada      | Tipo                              | Arquivos | Observação                                                  |
-| ----------- | --------------------------------- | -------- | ----------------------------------------------------------- |
-| Backend     | Unit (puro)                       | 4        | scoring, axeResult, urlSafety, assertSafeUrl                |
-| Backend     | Unit middlewares                  | 2        | requestId, clientId                                         |
-| Backend     | Unit rota (mocks)                 | 1        | audits.test.ts                                              |
-| Backend     | Integration                       | 1        | audits.integration.test.ts (mongo in-memory, queue mockada) |
-| Frontend    | Unit (RTL)                        | 11       | UI primitivos + lib + report cards + error boundary         |
-| Worker      | —                                 | **0**    | nenhum teste                                                |
-| E2E         | —                                 | **0**    | nenhum                                                      |
-| Mutation    | —                                 | **0**    | nenhum                                                      |
-| Contract    | —                                 | **0**    | OpenAPI existe mas não é validado                           |
+| Camada   | Tipo              | Arquivos | Observação                                                  |
+| -------- | ----------------- | -------- | ----------------------------------------------------------- |
+| Backend  | Unit (puro)       | 4        | scoring, axeResult, urlSafety, assertSafeUrl                |
+| Backend  | Unit middlewares  | 2        | requestId, clientId                                         |
+| Backend  | Unit rota (mocks) | 1        | audits.test.ts                                              |
+| Backend  | Integration       | 1        | audits.integration.test.ts (mongo in-memory, queue mockada) |
+| Frontend | Unit (RTL)        | 11       | UI primitivos + lib + report cards + error boundary         |
+| Worker   | —                 | **0**    | nenhum teste                                                |
+| E2E      | —                 | **0**    | nenhum                                                      |
+| Mutation | —                 | **0**    | nenhum                                                      |
+| Contract | —                 | **0**    | OpenAPI existe mas não é validado                           |
 
 Cobertura real não é medida (`collectCoverageFrom` está no jest config mas `--coverage` não roda no CI; sem threshold).
 
@@ -73,7 +73,7 @@ Cobertura real não é medida (`collectCoverageFrom` está no jest config mas `-
 
 1. **Métricas Prometheus em `/metrics`** com: `http_request_duration_seconds`, `audit_queue_depth`, `audit_duration_seconds` (histogram), `audit_failure_total{reason}`, `puppeteer_browser_relaunch_total`. Um `prom-client` no api e no worker fecha o gap. **(M)**
 2. **OpenTelemetry ponta-a-ponta** (auto-instrumentation em express + ioredis + mongoose, manual span no `runAudit`). Hoje o `requestId` resolve correlação, mas não é um trace OTLP. **(M)**
-3. **SLOs definidos por escrito** com error budget: ex. *p95 audit duration ≤ 30 s* sobre URLs ≤ 2 MB; *API availability ≥ 99,5%*; *queue lag p95 ≤ 60 s*. Sem SLO, "está bom" é vibe. **(S)**
+3. **SLOs definidos por escrito** com error budget: ex. _p95 audit duration ≤ 30 s_ sobre URLs ≤ 2 MB; _API availability ≥ 99,5%_; _queue lag p95 ≤ 60 s_. Sem SLO, "está bom" é vibe. **(S)**
 
 ---
 

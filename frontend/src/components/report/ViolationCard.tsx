@@ -21,9 +21,7 @@ export function ViolationCard({ violation }: { violation: Violation }) {
         </span>
       </header>
 
-      {humanImpact && (
-        <p className="mt-3 max-w-prose text-sm text-ink/80">{humanImpact}</p>
-      )}
+      {humanImpact && <p className="mt-3 max-w-prose text-sm text-ink/80">{humanImpact}</p>}
 
       {violation.helpUrl && (
         <a

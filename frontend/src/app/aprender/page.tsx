@@ -29,9 +29,7 @@ export default function LearnPage() {
     <section className="py-20">
       <Container className="flex max-w-prose flex-col gap-10">
         <header className="flex flex-col gap-3">
-          <span className="text-xs uppercase tracking-wider text-muted">
-            {copy.nav.learn}
-          </span>
+          <span className="text-xs uppercase tracking-wider text-muted">{copy.nav.learn}</span>
           <h1 className="font-serif text-4xl text-ink md:text-5xl">
             Acessibilidade em poucas palavras
           </h1>

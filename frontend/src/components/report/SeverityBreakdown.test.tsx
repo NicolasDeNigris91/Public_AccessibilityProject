@@ -14,9 +14,7 @@ const totals = (overrides: Partial<SeverityTotals> = {}): SeverityTotals => ({
 describe("SeverityBreakdown", () => {
   it("renders all four severity labels in fixed order", () => {
     const { container } = render(<SeverityBreakdown totals={totals()} />);
-    const terms = Array.from(container.querySelectorAll("dt")).map(
-      (dt) => dt.textContent
-    );
+    const terms = Array.from(container.querySelectorAll("dt")).map((dt) => dt.textContent);
     expect(terms).toEqual([
       copy.severity.critical.label,
       copy.severity.serious.label,
@@ -27,9 +25,7 @@ describe("SeverityBreakdown", () => {
 
   it("shows the count for each severity", () => {
     render(
-      <SeverityBreakdown
-        totals={totals({ critical: 3, serious: 7, moderate: 1, minor: 12 })}
-      />
+      <SeverityBreakdown totals={totals({ critical: 3, serious: 7, moderate: 1, minor: 12 })} />
     );
     expect(screen.getByText("3")).toBeInTheDocument();
     expect(screen.getByText("7")).toBeInTheDocument();
