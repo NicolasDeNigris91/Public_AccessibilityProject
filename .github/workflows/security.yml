@@ -72,3 +72,12 @@ jobs:
 
       - name: Audit frontend (production deps)
         run: npm audit --workspace frontend --omit=dev --audit-level=high
+
+      # Validate that every dependency in the lockfile carries a valid
+      # registry signature. Catches package-tampering / typosquats that
+      # have a forged manifest but invalid signature. Fails the build on
+      # any unsigned or invalid-signature entry — npm registry signs
+      # every package since 2023, so the invariant is "every dep
+      # verifies" not "best effort".
+      - name: Verify package signatures (full lockfile)
+        run: npm audit signatures
