@@ -30,7 +30,11 @@ export async function apiFetch(
   const headers = new Headers(init.headers);
   const clientId = getClientId();
   if (clientId) headers.set("X-Client-Id", clientId);
-  return fetch(input, { ...init, headers });
+  // Always send the auth cookie cross-origin. The backend CORS layer
+  // already returns Access-Control-Allow-Credentials, so this is the
+  // matching client-side opt-in. Anonymous flows still work (no cookie =
+  // backend falls back to clientId scope).
+  return fetch(input, { ...init, headers, credentials: "include" });
 }
 
 async function readErrorBody(res: Response): Promise<ApiErrorBody | undefined> {
