@@ -1,4 +1,5 @@
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
 import { z } from "zod";
 import { dispatchWebVital } from "@/application/rumDispatch";
 
@@ -19,7 +20,25 @@ const Beacon = z.object({
   route: z.string().min(1).max(64),
 });
 
+// RUM gets its own per-IP rate limit because the global cap (30/min)
+// is sized for state-changing API calls; web-vitals fires 5 metrics per
+// page load and a busy reader navigating ~6 pages in a minute would
+// trip the global cap on beacons alone. Beacons are tiny and don't
+// touch the database, so a higher per-IP cap is safe. Returns 204 on
+// throttle as well, matching the rest of the endpoint's quiet failure
+// mode (sendBeacon should never surface a 4xx in devtools).
+const rumRateLimit = rateLimit({
+  windowMs: 60_000,
+  max: 240,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (_req, res) => {
+    res.status(204).end();
+  },
+});
+
 export const rumRouter = Router();
+rumRouter.use(rumRateLimit);
 
 /**
  * @openapi

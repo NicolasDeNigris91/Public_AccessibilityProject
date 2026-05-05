@@ -1,1 +1,22 @@
+# Format / lint staged files via lint-staged.
 npx lint-staged
+
+# Local secret scan: catch secrets BEFORE they leave the workstation.
+# CI also runs gitleaks (post-push), but a pre-commit catch saves the
+# rotation+rewrite ceremony. Falls through with a warning when
+# gitleaks isn't on PATH so we don't block developers who haven't
+# installed it; install instructions: https://github.com/gitleaks/gitleaks
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks protect --staged --no-banner --redact \
+    --config "$(git rev-parse --show-toplevel)/.gitleaks.toml" || {
+    echo ""
+    echo "gitleaks found a potential secret in staged changes."
+    echo "If it's a false positive, add the path to .gitleaks.toml under [allowlist]"
+    echo "with a one-line reason (\"false positive\" is not a reason)."
+    exit 1
+  }
+else
+  echo "warning: gitleaks not on PATH; skipping local secret scan."
+  echo "  install: https://github.com/gitleaks/gitleaks#installing"
+  echo "  CI still runs gitleaks on every push, so this is a soft skip."
+fi
