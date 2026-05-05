@@ -1,0 +1,74 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Tuesdays 04:30 UTC: catch new advisories on dependencies even when no
+    # PR has been opened.
+    - cron: "30 4 * * 2"
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gitleaks:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+
+  osv-scanner:
+    name: SCA (osv-scanner)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run osv-scanner
+        uses: google/osv-scanner-action/osv-scanner-action@v2.0.1
+        with:
+          scan-args: |-
+            --recursive
+            --skip-git
+            --lockfile=package-lock.json
+            ./
+
+  npm-audit:
+    name: npm audit (production)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # Production-only audit on each workspace. --audit-level=high makes us
+      # fail on high/critical advisories but tolerate moderate noise that
+      # Dependabot will resolve weekly.
+      - name: Audit backend (production deps)
+        run: npm audit --workspace backend --omit=dev --audit-level=high
+
+      - name: Audit frontend (production deps)
+        run: npm audit --workspace frontend --omit=dev --audit-level=high
