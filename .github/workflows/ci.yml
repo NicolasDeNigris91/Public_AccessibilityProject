@@ -62,8 +62,8 @@ jobs:
       - name: Lint
         run: npm run lint --workspace backend
 
-      - name: Test
-        run: npm test --workspace backend
+      - name: Test (with coverage gate)
+        run: npm run test:coverage --workspace backend
 
   frontend:
     name: Frontend
@@ -85,8 +85,9 @@ jobs:
       - name: Lint
         run: npm run lint --workspace frontend
 
-      - name: Test
-        run: npm test --workspace frontend
+      - name: Test (with coverage gate)
+        run: npx jest --coverage
+        working-directory: frontend
 
       - name: Build
         run: npm run build --workspace frontend
