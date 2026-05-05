@@ -1,0 +1,20 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "_comment": "Per-service build / deploy hints for Railway. Service-level overrides (memory, replicas, env vars) live in the Railway dashboard. PR previews are enabled in Project → Settings → 'Pull Request Environments' and are deployed by .github/workflows/preview-env.yml when a RAILWAY_TOKEN secret is configured.",
+  "build": {
+    "builder": "NIXPACKS"
+  },
+  "deploy": {
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 3,
+    "healthcheckTimeout": 60,
+    "numReplicas": 1
+  },
+  "environments": {
+    "production": {
+      "deploy": {
+        "numReplicas": 1
+      }
+    }
+  }
+}
