@@ -1,16 +1,17 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, type ReactNode, type Ref } from "react";
+import { useEffect, useRef, useState, type ReactNode, type Ref } from "react";
 import useSWR from "swr";
 import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 import { ReportHeader } from "@/components/report/ReportHeader";
 import { SeverityBreakdown } from "@/components/report/SeverityBreakdown";
 import { ViolationCard } from "@/components/report/ViolationCard";
-import { ApiError, API_URL, apiFetch, fetcher } from "@/lib/api";
+import { API_URL, fetcher, postJson } from "@/lib/api";
 import { deriveAuditState, pollingIntervalFor } from "@/lib/auditState";
 import { copy } from "@/lib/copy";
+import { submitErrorMessage } from "@/lib/errorMessages";
 import type { AuditDetail } from "@/lib/types";
 
 const SEVERITY_WEIGHT = { critical: 0, serious: 1, moderate: 2, minor: 3 } as const;
@@ -19,6 +20,7 @@ export default function AuditDetailPage({ params }: { params: { id: string } }) 
   const router = useRouter();
   const reauditInFlight = useRef(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const [reauditError, setReauditError] = useState<string | null>(null);
 
   // Move focus to the top heading when the audit id changes (first mount and
   // after re-audit navigates to a fresh publicId). Screen readers announce the
@@ -43,18 +45,13 @@ export default function AuditDetailPage({ params }: { params: { id: string } }) 
   async function reaudit(url: string) {
     if (reauditInFlight.current) return;
     reauditInFlight.current = true;
+    setReauditError(null);
     try {
-      const res = await apiFetch(`${API_URL}/api/audits`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ url }),
-      });
-      if (!res.ok) throw new ApiError(res.status);
-      const { publicId } = (await res.json()) as { publicId: string };
+      const { publicId } = await postJson<{ publicId: string }>(`${API_URL}/api/audits`, { url });
       router.push(`/audits/${publicId}`);
     } catch (err) {
       reauditInFlight.current = false;
-      console.error("reaudit failed", err);
+      setReauditError(submitErrorMessage(err));
     }
   }
 
@@ -114,6 +111,7 @@ export default function AuditDetailPage({ params }: { params: { id: string } }) 
           url={state.data.url}
           headingRef={headingRef}
           action={<Button onClick={() => reaudit(state.data.url)}>{s.retry}</Button>}
+          alert={reauditError}
         />
       );
 
@@ -123,9 +121,21 @@ export default function AuditDetailPage({ params }: { params: { id: string } }) 
           data={state.data}
           onReaudit={() => reaudit(state.data.url)}
           headingRef={headingRef}
+          alert={reauditError}
         />
       );
   }
+}
+
+function ReauditAlert({ message }: { message: string }) {
+  return (
+    <div
+      role="alert"
+      className="rounded border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-900 dark:border-rose-800/60 dark:bg-rose-950/40 dark:text-rose-100"
+    >
+      {message}
+    </div>
+  );
 }
 
 function StatusShell({
@@ -133,12 +143,14 @@ function StatusShell({
   hint,
   url,
   action,
+  alert,
   headingRef,
 }: {
   title: string;
   hint?: string;
   url?: string;
   action?: ReactNode;
+  alert?: string | null;
   headingRef?: Ref<HTMLHeadingElement>;
 }) {
   return (
@@ -154,6 +166,7 @@ function StatusShell({
         {url && <p className="break-all font-mono text-sm text-muted">{url}</p>}
         {hint && <p className="max-w-prose text-ink/80">{hint}</p>}
         {action && <div className="mt-2">{action}</div>}
+        {alert && <ReauditAlert message={alert} />}
       </Container>
     </section>
   );
@@ -162,10 +175,12 @@ function StatusShell({
 function ReportView({
   data,
   onReaudit,
+  alert,
   headingRef,
 }: {
   data: AuditDetail;
   onReaudit: () => void;
+  alert?: string | null;
   headingRef: Ref<HTMLHeadingElement> | undefined;
 }) {
   const totals = data.totals ?? { critical: 0, serious: 0, moderate: 0, minor: 0 };
@@ -184,6 +199,7 @@ function ReportView({
           onReaudit={onReaudit}
           headingRef={headingRef}
         />
+        {alert && <ReauditAlert message={alert} />}
 
         <div className="flex flex-col gap-6">
           <p className="max-w-prose text-lg text-ink/85">

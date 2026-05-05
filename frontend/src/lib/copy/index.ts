@@ -54,6 +54,7 @@ export const copy = {
     statusProcessing: "Processando",
     statusDone: "Concluído",
     statusFailed: "Falhou",
+    submitErrorTitle: "Não foi possível auditar este endereço",
   },
   report: {
     scoreLabel: "Pontuação Euthus",

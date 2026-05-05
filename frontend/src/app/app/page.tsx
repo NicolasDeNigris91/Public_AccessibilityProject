@@ -6,8 +6,9 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 import { Input } from "@/components/ui/Input";
-import { API_URL, apiFetch, fetcher } from "@/lib/api";
+import { API_URL, fetcher, postJson } from "@/lib/api";
 import { copy } from "@/lib/copy";
+import { submitErrorMessage } from "@/lib/errorMessages";
 import type { AuditStatus, AuditSummary } from "@/lib/types";
 
 const STATUS_LABEL: Record<AuditStatus, string> = {
@@ -20,6 +21,7 @@ const STATUS_LABEL: Record<AuditStatus, string> = {
 export default function DashboardPage() {
   const [url, setUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const { data, mutate } = useSWR<AuditSummary[]>(`${API_URL}/api/audits`, fetcher, {
     refreshInterval: 3000,
   });
@@ -27,14 +29,13 @@ export default function DashboardPage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
+    setSubmitError(null);
     try {
-      await apiFetch(`${API_URL}/api/audits`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ url }),
-      });
+      await postJson<{ publicId: string; status: string }>(`${API_URL}/api/audits`, { url });
       setUrl("");
       mutate();
+    } catch (err) {
+      setSubmitError(submitErrorMessage(err));
     } finally {
       setSubmitting(false);
     }
@@ -48,7 +49,11 @@ export default function DashboardPage() {
           <p className="max-w-prose text-ink/80">{copy.dashboard.lead}</p>
         </header>
 
-        <form onSubmit={submit} className="flex flex-col gap-3">
+        <form
+          onSubmit={submit}
+          className="flex flex-col gap-3"
+          aria-describedby={submitError ? "submit-error" : undefined}
+        >
           <div className="flex flex-col gap-2 sm:flex-row">
             <div className="flex-1">
               <Input
@@ -59,6 +64,7 @@ export default function DashboardPage() {
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 aria-label="URL"
+                aria-invalid={submitError ? true : undefined}
               />
             </div>
             <Button type="submit" size="lg" disabled={submitting}>
@@ -66,6 +72,16 @@ export default function DashboardPage() {
             </Button>
           </div>
           <span className="text-xs text-muted">{copy.dashboard.submitHint}</span>
+          {submitError && (
+            <div
+              id="submit-error"
+              role="alert"
+              className="rounded border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-900 dark:border-rose-800/60 dark:bg-rose-950/40 dark:text-rose-100"
+            >
+              <p className="font-medium">{copy.dashboard.submitErrorTitle}</p>
+              <p className="mt-1">{submitError}</p>
+            </div>
+          )}
         </form>
 
         <AuditsTable audits={data} />
