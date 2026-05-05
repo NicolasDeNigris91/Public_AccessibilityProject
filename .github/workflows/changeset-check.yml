@@ -1,0 +1,36 @@
+name: Changeset check
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: changeset-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changeset:
+    name: Has a changeset (or labeled "skip-changeset")
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-changeset') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Verify a changeset is present
+        run: npx changeset status --since=origin/${{ github.event.pull_request.base.ref }}
