@@ -93,3 +93,6 @@ jobs:
         run: npm run build --workspace frontend
         env:
           NEXT_PUBLIC_API_URL: http://localhost:4000
+
+      - name: Bundle budget
+        run: npm run bundle:check --workspace frontend
