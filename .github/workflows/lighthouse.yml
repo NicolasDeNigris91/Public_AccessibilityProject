@@ -1,0 +1,39 @@
+name: Lighthouse CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/lighthouse.yml"
+
+concurrency:
+  group: lighthouse-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lighthouse:
+    name: Lighthouse budget
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Install LHCI
+        run: npm i -g @lhci/cli@0.14.x
+
+      - name: Build frontend
+        run: npm run build --workspace frontend
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:4000
+
+      - name: Run Lighthouse CI
+        run: lhci autorun
+        working-directory: frontend

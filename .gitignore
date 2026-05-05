@@ -11,6 +11,9 @@ out/
 coverage/
 reports/
 .stryker-tmp/
+playwright-report/
+test-results/
+.lighthouseci/
 
 # TypeScript incremental
 *.tsbuildinfo
