@@ -1,0 +1,339 @@
+{
+  "_comment": "Versioned Grafana dashboard for Euthus. Import via Grafana UI -> Dashboards -> Import -> Upload JSON. Designed for the default Prometheus datasource; no per-instance hard-codes. Replace the datasource UID by selecting your data source on import. Panels group into RED (api), USE (worker resources), DLQ, Web Vitals (RUM), and a tracing link. Histogram quantile queries assume the standard buckets defined in backend/src/infrastructure/metrics/registry.ts.",
+  "schemaVersion": 39,
+  "title": "Euthus — service overview",
+  "uid": "euthus-overview",
+  "version": 1,
+  "editable": true,
+  "graphTooltip": 1,
+  "timezone": "browser",
+  "tags": ["euthus", "accessibility", "rum", "slo"],
+  "time": { "from": "now-6h", "to": "now" },
+  "refresh": "30s",
+  "templating": {
+    "list": [
+      {
+        "name": "DS_PROM",
+        "label": "Prometheus",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {},
+        "hide": 0
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "row",
+      "id": 100,
+      "title": "RED — API",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "panels": []
+    },
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "API request rate (req/s)",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROM}" },
+      "targets": [
+        {
+          "expr": "sum(rate(http_request_duration_seconds_count{route=~\"/api/.*\"}[5m]))",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" } },
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 1 }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "API 5xx ratio (rolling 5m)",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROM}" },
+      "targets": [
+        {
+          "expr": "sum(rate(http_request_duration_seconds_count{route=~\"/api/.*\",status_class=\"5xx\"}[5m])) / clamp_min(sum(rate(http_request_duration_seconds_count{route=~\"/api/.*\"}[5m])), 0.0001)",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.005 },
+              { "color": "red", "value": 0.01 }
+            ]
+          }
+        }
+      },
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 1 }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "API latency by quantile (s)",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROM}" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(http_request_duration_seconds_bucket{route=~\"/api/.*\"}[5m])))",
+          "refId": "p50",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{route=~\"/api/.*\"}[5m])))",
+          "refId": "p95",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket{route=~\"/api/.*\"}[5m])))",
+          "refId": "p99",
+          "legendFormat": "p99"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 1 }
+    },
+    {
+      "type": "row",
+      "id": 200,
+      "title": "Worker — audit pipeline",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 7 },
+      "panels": []
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Audits in flight",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROM}" },
+      "targets": [{ "expr": "sum(audits_in_flight)", "refId": "A" }],
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 8 }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Queue depth by status",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROM}" },
+      "targets": [
+        {
+          "expr": "sum by (status) (audit_queue_depth)",
+          "refId": "A",
+          "legendFormat": "{{status}}"
+        }
+      ],
+      "gridPos": { "h": 6, "w": 9, "x": 6, "y": 8 }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Audit duration p50 / p95 / p99 (s) — SLO p95 ≤ 30s",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROM}" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(audit_duration_seconds_bucket[5m])))",
+          "refId": "p50",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(audit_duration_seconds_bucket[5m])))",
+          "refId": "p95",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(audit_duration_seconds_bucket[5m])))",
+          "refId": "p99",
+          "legendFormat": "p99"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 30 }
+            ]
+          }
+        }
+      },
+      "gridPos": { "h": 6, "w": 9, "x": 15, "y": 8 }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Audit failures by reason (per 5m)",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROM}" },
+      "targets": [
+        {
+          "expr": "sum by (reason) (rate(audit_failure_total[5m]))",
+          "refId": "A",
+          "legendFormat": "{{reason}}"
+        }
+      ],
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 14 }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Puppeteer browser relaunches",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROM}" },
+      "targets": [
+        {
+          "expr": "sum(rate(puppeteer_browser_relaunch_total[5m]))",
+          "refId": "A",
+          "legendFormat": "relaunches/s"
+        }
+      ],
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 14 }
+    },
+    {
+      "type": "row",
+      "id": 300,
+      "title": "DLQ — dead-letter queue",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 20 },
+      "panels": []
+    },
+    {
+      "id": 9,
+      "type": "stat",
+      "title": "DLQ moves (last 24h, by reason)",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROM}" },
+      "targets": [
+        {
+          "expr": "sum by (reason) (increase(audit_dead_letter_total[24h]))",
+          "refId": "A",
+          "legendFormat": "{{reason}}"
+        }
+      ],
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 21 }
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "DLQ rate (per 5m, by reason)",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROM}" },
+      "targets": [
+        {
+          "expr": "sum by (reason) (rate(audit_dead_letter_total[5m]))",
+          "refId": "A",
+          "legendFormat": "{{reason}}"
+        }
+      ],
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 21 }
+    },
+    {
+      "type": "row",
+      "id": 400,
+      "title": "RUM — Real User Monitoring (web-vitals)",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 27 },
+      "panels": []
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "LCP p75 by route (s) — good ≤ 2.5",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROM}" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.75, sum by (route, le) (rate(web_vital_lcp_seconds_bucket[15m])))",
+          "refId": "A",
+          "legendFormat": "{{route}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 2.5 },
+              { "color": "red", "value": 4 }
+            ]
+          }
+        }
+      },
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 28 }
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "INP p75 by route (s) — good ≤ 0.2",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROM}" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.75, sum by (route, le) (rate(web_vital_inp_seconds_bucket[15m])))",
+          "refId": "A",
+          "legendFormat": "{{route}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.2 },
+              { "color": "red", "value": 0.5 }
+            ]
+          }
+        }
+      },
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 28 }
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "CLS p75 by route — good ≤ 0.1",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROM}" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.75, sum by (route, le) (rate(web_vital_cls_bucket[15m])))",
+          "refId": "A",
+          "legendFormat": "{{route}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.1 },
+              { "color": "red", "value": 0.25 }
+            ]
+          }
+        }
+      },
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 28 }
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "RUM beacons rejected (per 5m, by reason)",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROM}" },
+      "targets": [
+        {
+          "expr": "sum by (reason) (rate(web_vital_rejected_total[5m]))",
+          "refId": "A",
+          "legendFormat": "{{reason}}"
+        }
+      ],
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 34 }
+    },
+    {
+      "id": 15,
+      "type": "text",
+      "title": "Tracing",
+      "options": {
+        "mode": "markdown",
+        "content": "Distributed traces are exported via OTLP/HTTP to Tempo Cloud (configurable via `OTEL_EXPORTER_OTLP_ENDPOINT`). Click an audit's `publicId` in any log line and search the trace explorer for the matching `audit.public_id` span attribute.\n\nKey spans:\n\n- `audit.enqueue` — api side, attached to the `POST /api/audits` HTTP span.\n- `audit.process` — worker dispatch, restored from the W3C `traceparent` so it shares the api trace id.\n- `audit.run` — Puppeteer + axe under the dispatch span.\n\nSee [docs/adr/0004-opentelemetry-tracing.md](https://github.com/NicolasDeNigris91/AccessibilityProject/blob/main/docs/adr/0004-opentelemetry-tracing.md)."
+      },
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 34 }
+    }
+  ]
+}
