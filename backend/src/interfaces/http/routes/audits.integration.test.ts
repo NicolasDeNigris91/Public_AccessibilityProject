@@ -102,6 +102,31 @@ describe("GET /api/audits/:publicId (integration)", () => {
     });
   });
 
+  it("does not leak Mongo internals or owner clientId on the detail response", async () => {
+    // contracts.ts has long claimed those fields would be filtered;
+    // until now there was no test holding the route to it. The route
+    // explicitly projects via .select() — this guards against a
+    // refactor dropping the projection by accident.
+    await AuditModel.create({
+      publicId: "no-leak",
+      clientId: VALID_ID,
+      url: "https://noleak.example",
+      status: "done",
+      score: 70,
+      totals: { critical: 0, serious: 0, moderate: 0, minor: 0 },
+      violations: [],
+      passes: 1,
+      durationMs: 1,
+    });
+    const res = await request(buildApp()).get("/api/audits/no-leak");
+    expect(res.status).toBe(200);
+    const body = res.body as Record<string, unknown>;
+    expect(body).not.toHaveProperty("_id");
+    expect(body).not.toHaveProperty("__v");
+    expect(body).not.toHaveProperty("clientId");
+    expect(body).not.toHaveProperty("updatedAt");
+  });
+
   it("returns 404 envelope for unknown publicId", async () => {
     const res = await request(buildApp()).get("/api/audits/does-not-exist");
     expect(res.status).toBe(404);
@@ -142,28 +167,81 @@ describe("GET /api/audits (integration)", () => {
     expect(theirs.body.map((a: { publicId: string }) => a.publicId)).toEqual(["c"]);
   });
 
-  it("orders results newest-first", async () => {
+  it("orders results newest-first regardless of insertion order", async () => {
+    // Insert in reverse-chronological order so a missing `.sort()` would
+    // return them in insertion order (which is exactly what we want to
+    // detect): the test only passes if the route actively sorts by
+    // createdAt desc.
     const now = Date.now();
     await AuditModel.create([
       {
-        publicId: "old",
+        publicId: "newest",
         clientId: VALID_ID,
-        url: "https://old.example",
-        status: "done",
-        createdAt: new Date(now - 10_000),
-      },
-      {
-        publicId: "new",
-        clientId: VALID_ID,
-        url: "https://new.example",
+        url: "https://newest.example",
         status: "done",
         createdAt: new Date(now),
+      },
+      {
+        publicId: "middle",
+        clientId: VALID_ID,
+        url: "https://middle.example",
+        status: "done",
+        createdAt: new Date(now - 60_000),
+      },
+      {
+        publicId: "oldest",
+        clientId: VALID_ID,
+        url: "https://oldest.example",
+        status: "done",
+        createdAt: new Date(now - 600_000),
       },
     ]);
 
     const res = await request(buildApp()).get("/api/audits").set("X-Client-Id", VALID_ID);
 
-    expect(res.body.map((a: { publicId: string }) => a.publicId)).toEqual(["new", "old"]);
+    expect(res.body.map((a: { publicId: string }) => a.publicId)).toEqual([
+      "newest",
+      "middle",
+      "oldest",
+    ]);
+  });
+
+  it("returns only the documented summary fields (no _id, __v, violations, clientId)", async () => {
+    // The route's .select() projection is the API contract. Returning
+    // _id leaks Mongo internals; returning clientId leaks the owner of
+    // the audit; returning violations on the list endpoint blows up the
+    // payload. Asserting the exact key set keeps every one of those
+    // honest under refactoring.
+    await AuditModel.create({
+      publicId: "summary-shape",
+      clientId: VALID_ID,
+      url: "https://shape.example",
+      status: "done",
+      score: 80,
+      totals: { critical: 0, serious: 1, moderate: 0, minor: 0 },
+      violations: [
+        {
+          id: "color-contrast",
+          impact: "serious",
+          description: "x",
+          helpUrl: "https://example.com/h",
+          tags: [],
+          nodes: [],
+        },
+      ],
+      passes: 10,
+      durationMs: 500,
+    });
+
+    const res = await request(buildApp()).get("/api/audits").set("X-Client-Id", VALID_ID);
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    const items = res.body as Array<Record<string, unknown>>;
+    const item = items[0];
+    if (!item) throw new Error("expected one item");
+    expect(Object.keys(item).sort()).toEqual(
+      ["createdAt", "publicId", "score", "status", "totals", "url"].sort()
+    );
   });
 
   it("caps results at 50", async () => {

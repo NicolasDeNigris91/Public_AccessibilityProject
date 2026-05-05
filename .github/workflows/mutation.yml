@@ -5,11 +5,15 @@ on:
     branches: [main]
     paths:
       - "backend/src/domain/**"
+      - "backend/src/application/**"
+      - "backend/src/interfaces/http/**"
       - "backend/stryker.config.json"
       - ".github/workflows/mutation.yml"
   pull_request:
     paths:
       - "backend/src/domain/**"
+      - "backend/src/application/**"
+      - "backend/src/interfaces/http/**"
       - "backend/stryker.config.json"
       - ".github/workflows/mutation.yml"
   schedule:
@@ -24,7 +28,7 @@ jobs:
   stryker:
     name: Stryker (backend domain)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
