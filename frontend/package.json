@@ -12,7 +12,9 @@
     "e2e": "playwright test",
     "e2e:install": "playwright install --with-deps chromium",
     "analyze": "ANALYZE=true next build",
-    "bundle:check": "node scripts/bundleBudget.cjs"
+    "bundle:check": "node scripts/bundleBudget.cjs",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build --output-dir storybook-static"
   },
   "dependencies": {
     "next": "^14.2.5",
