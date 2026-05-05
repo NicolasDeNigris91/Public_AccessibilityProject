@@ -1,0 +1,141 @@
+name: Preview environment
+
+# Per-PR preview deployment to Railway. The job is intentionally
+# self-skipping when the RAILWAY_TOKEN secret is missing, so a fork
+# or a fresh clone never hits a permission error — it simply doesn't
+# create a preview env.
+#
+# Required secrets (configure in repo settings -> Secrets -> Actions):
+#   RAILWAY_TOKEN     — Railway API token (Account → Tokens → Create).
+#   RAILWAY_PROJECT_ID — Railway project ID (Project → Settings → ID).
+#
+# Optional secrets:
+#   RAILWAY_BASE_ENVIRONMENT — environment to clone from (default: production).
+#
+# Operationally: Railway also has a "Pull Request Environments" toggle
+# in Project → Settings that creates envs automatically without this
+# workflow. This action is the *explicit* path so the lifecycle is
+# visible in CI logs and the cleanup on PR close is guaranteed.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy preview env
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Skip when RAILWAY_TOKEN is unavailable
+        if: ${{ env.RAILWAY_TOKEN == '' }}
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          echo "RAILWAY_TOKEN secret not set — skipping preview deploy."
+          echo "Configure repo secrets to enable per-PR Railway envs."
+          exit 0
+
+      - uses: actions/checkout@v4
+        if: ${{ env.RAILWAY_TOKEN != '' }}
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+      - name: Install Railway CLI
+        if: ${{ env.RAILWAY_TOKEN != '' }}
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: npm install -g @railway/cli@latest
+
+      - name: Create / update preview environment
+        if: ${{ env.RAILWAY_TOKEN != '' }}
+        id: deploy
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
+          RAILWAY_BASE_ENVIRONMENT: ${{ secrets.RAILWAY_BASE_ENVIRONMENT || 'production' }}
+          PR_ENV_NAME: pr-${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          echo "Linking project $RAILWAY_PROJECT_ID..."
+          railway link --project "$RAILWAY_PROJECT_ID"
+
+          # Create the env idempotently (ignore "already exists" errors).
+          if ! railway environment "$PR_ENV_NAME" > /dev/null 2>&1; then
+            echo "Creating environment $PR_ENV_NAME (cloned from $RAILWAY_BASE_ENVIRONMENT)..."
+            railway environment new "$PR_ENV_NAME" --duplicate "$RAILWAY_BASE_ENVIRONMENT" || true
+          fi
+
+          railway environment "$PR_ENV_NAME"
+          railway up --detach
+          # Surface the public URL the action just produced.
+          PREVIEW_URL=$(railway domain || true)
+          echo "preview_url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Comment preview URL on the PR
+        if: ${{ env.RAILWAY_TOKEN != '' && steps.deploy.outputs.preview_url != '' }}
+        uses: peter-evans/create-or-update-comment@v4
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            🚂 Preview environment is up.
+
+            **URL:** ${{ steps.deploy.outputs.preview_url }}
+            **Env:** `pr-${{ github.event.pull_request.number }}`
+
+            This environment is destroyed automatically when the PR is
+            closed or merged.
+
+  destroy:
+    name: Destroy preview env
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Skip when RAILWAY_TOKEN is unavailable
+        if: ${{ env.RAILWAY_TOKEN == '' }}
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          echo "RAILWAY_TOKEN secret not set — skipping preview teardown."
+          exit 0
+
+      - name: Install Railway CLI
+        if: ${{ env.RAILWAY_TOKEN != '' }}
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: npm install -g @railway/cli@latest
+
+      - name: Delete preview environment
+        if: ${{ env.RAILWAY_TOKEN != '' }}
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
+          PR_ENV_NAME: pr-${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          railway link --project "$RAILWAY_PROJECT_ID"
+          # 'environment delete' is destructive but scoped to the
+          # PR-specific env we just selected. Production is never
+          # named pr-<number> by convention.
+          railway environment delete "$PR_ENV_NAME" --yes || \
+            echo "Environment $PR_ENV_NAME already absent or not deletable; nothing to do."
+
+      - name: Comment teardown on the PR
+        if: ${{ env.RAILWAY_TOKEN != '' && github.event.pull_request.merged }}
+        uses: peter-evans/create-or-update-comment@v4
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            🧹 Preview environment `pr-${{ github.event.pull_request.number }}` torn down.
