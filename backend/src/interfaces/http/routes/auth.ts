@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type RequestHandler } from "express";
 import { z } from "zod";
 import mongoose from "mongoose";
 import { AppError } from "../middlewares/errorHandler";
@@ -30,14 +30,23 @@ export interface AuthRouterDeps {
    * real inbox. Absent in prod by construction → route 404s.
    */
   lastLinkLookup?: (email: string) => string | undefined;
+  /**
+   * Optional per-(ip, email) rate limiter, mounted before the magic-link
+   * handler. Server.ts wires the Redis-backed `ipEmailRateLimit` here in
+   * normal runs; tests can pass a stub. When absent the route is unbounded
+   * apart from the upstream IP-level limit.
+   */
+  magicLinkRateLimiter?: RequestHandler;
 }
+
+const passThrough: RequestHandler = (_req, _res, next) => next();
 
 const EmailBody = z.object({ email: z.string().email().max(254) });
 
 export function buildAuthRouter(deps: AuthRouterDeps): Router {
   const r = Router();
 
-  r.post("/magic-link", async (req, res) => {
+  r.post("/magic-link", deps.magicLinkRateLimiter ?? passThrough, async (req, res) => {
     if (!deps.sender) {
       throw new AppError(503, "auth/email-not-configured", {
         hint: "Set EMAIL_PROVIDER=resend plus RESEND_API_KEY and EMAIL_FROM in this environment.",

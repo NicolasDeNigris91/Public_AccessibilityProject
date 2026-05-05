@@ -4,6 +4,8 @@ import cookieParser from "cookie-parser";
 import request from "supertest";
 import mongoose from "mongoose";
 import { MongoMemoryServer } from "mongodb-memory-server";
+import { Redis } from "ioredis";
+import RedisMock from "ioredis-mock";
 import { UserModel } from "@/infrastructure/db/UserModel";
 import { MagicLinkModel } from "@/infrastructure/db/MagicLinkModel";
 import { SessionModel } from "@/infrastructure/db/SessionModel";
@@ -13,6 +15,7 @@ import { SESSION_COOKIE_NAME } from "@/infrastructure/auth/cookies";
 import { errorHandler } from "@/interfaces/http/middlewares/errorHandler";
 import { requestId } from "@/interfaces/http/middlewares/requestId";
 import { optionalSession } from "@/interfaces/http/middlewares/optionalSession";
+import { ipEmailRateLimit } from "@/interfaces/http/middlewares/ipEmailRateLimit";
 import { buildAuthRouter, AuthRouterDeps } from "./auth";
 
 interface BuildAppOpts {
@@ -20,6 +23,7 @@ interface BuildAppOpts {
   cookieSecure?: boolean;
   cookieDomain?: string;
   lastLinkLookup?: AuthRouterDeps["lastLinkLookup"];
+  magicLinkRateLimiter?: AuthRouterDeps["magicLinkRateLimiter"];
 }
 
 function buildApp(opts: BuildAppOpts): express.Express {
@@ -40,6 +44,7 @@ function buildApp(opts: BuildAppOpts): express.Express {
       magicLinkTtlMs: 15 * 60_000,
       sessionTtlMs: 30 * 86_400_000,
       ...(opts.lastLinkLookup ? { lastLinkLookup: opts.lastLinkLookup } : {}),
+      ...(opts.magicLinkRateLimiter ? { magicLinkRateLimiter: opts.magicLinkRateLimiter } : {}),
     })
   );
   app.use(errorHandler);
@@ -216,6 +221,32 @@ describe("authRouter", () => {
       const r = await request(inboxApp).get("/api/auth/__test/last-link");
       expect(r.status).toBe(400);
       expect(r.body.error.code).toBe("missing_email");
+    });
+  });
+
+  describe("magic-link rate limit", () => {
+    it("429s after exceeding the per-(ip, email) cap", async () => {
+      const redis = new RedisMock() as unknown as Redis;
+      await redis.flushall();
+      const limited = buildApp({
+        sender,
+        magicLinkRateLimiter: ipEmailRateLimit({
+          redis,
+          max: 2,
+          windowMs: 60_000,
+          keyPrefix: "test:auth:rl",
+        }),
+      });
+      for (let i = 0; i < 2; i++) {
+        const ok = await request(limited).post("/api/auth/magic-link").send({ email: "a@b.com" });
+        expect(ok.status).toBe(202);
+      }
+      const blocked = await request(limited)
+        .post("/api/auth/magic-link")
+        .send({ email: "a@b.com" });
+      expect(blocked.status).toBe(429);
+      expect(blocked.body.error.code).toBe("rate_limited_per_ip_email");
+      await redis.quit();
     });
   });
 });
