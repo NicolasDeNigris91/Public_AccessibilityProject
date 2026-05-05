@@ -26,7 +26,12 @@ const SHUTDOWN_TIMEOUT_MS = 25_000;
 
 async function main() {
   await connectMongo();
-  await AuditModel.syncIndexes();
+  // Indexes are owned by migrations (backend/migrations/) in production.
+  // Keep an opt-in syncIndexes for dev convenience so the local docker-
+  // compose flow doesn't require running migrations manually.
+  if (env.NODE_ENV !== "production") {
+    await AuditModel.syncIndexes();
+  }
 
   const app = express();
 

@@ -62,6 +62,15 @@ non-root `pptruser`. Splitting the images keeps the API surface small (no
 chromium binaries on the public-facing container) and lets the two scale
 independently.
 
+## Mongo schema evolution
+
+`Mongoose.syncIndexes()` runs at api boot only outside production. In
+production, indexes and any data backfills are owned by versioned
+migrations under `backend/migrations/`, applied with
+[migrate-mongo](https://github.com/seppevs/migrate-mongo) before the
+release reaches the api / worker. See `backend/migrations/README.md`
+for authoring rules.
+
 ## Folders
 
 I went with a clean-architecture layout because I wanted `domain/` to stay pure
