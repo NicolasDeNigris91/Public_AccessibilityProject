@@ -24,6 +24,8 @@ const config: Config = {
     "!src/components/ColorBlindFilters.tsx",
     "!src/components/RumTracker.tsx",
     "!src/components/shell/**",
+    // Storybook stories are visual fixtures, not production code paths.
+    "!src/**/*.stories.{ts,tsx}",
   ],
   // No-regression baseline at the current measured numbers. Lift these as
   // tests land in Phase 1.4 (worker fixture, contract tests) and beyond.

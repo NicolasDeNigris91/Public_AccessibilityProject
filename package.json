@@ -24,10 +24,14 @@
     "@changesets/cli": "^2.27.9",
     "@commitlint/cli": "^19.5.0",
     "@commitlint/config-conventional": "^19.5.0",
+    "@storybook/addon-a11y": "^10.3.6",
+    "@storybook/nextjs-vite": "^10.3.6",
     "husky": "^9.1.6",
     "lint-staged": "^15.2.10",
     "prettier": "^3.3.3",
-    "ts-node": "^10.9.2"
+    "storybook": "^10.3.6",
+    "ts-node": "^10.9.2",
+    "vite": "^7.3.2"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,cjs,mjs,json,md,yml,yaml,css}": [
