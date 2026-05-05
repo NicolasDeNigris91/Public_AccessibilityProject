@@ -18,6 +18,12 @@
   "dependencies": {
     "@bull-board/api": "^7.0.0",
     "@bull-board/express": "^7.0.0",
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/auto-instrumentations-node": "^0.74.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.216.0",
+    "@opentelemetry/resources": "^2.7.1",
+    "@opentelemetry/sdk-node": "^0.216.0",
+    "@opentelemetry/semantic-conventions": "^1.40.0",
     "axe-core": "^4.10.0",
     "bullmq": "^5.12.0",
     "cors": "^2.8.5",

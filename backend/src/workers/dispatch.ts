@@ -4,6 +4,7 @@ import {
   auditFailureTotal,
   auditsInFlight,
 } from "@/infrastructure/metrics/registry";
+import { withRestoredContext, withSpan } from "@/infrastructure/telemetry/spans";
 
 /**
  * Pure-ish dispatch: walks one BullMQ audit job through the
@@ -32,6 +33,8 @@ export interface AuditJobInput {
   publicId: string;
   url: string;
   requestId?: string;
+  traceparent?: string;
+  tracestate?: string;
 }
 
 export interface AuditOutcome {
@@ -58,28 +61,49 @@ export async function processAuditJob(
   job: AuditJobInput,
   deps: DispatchDeps
 ): Promise<AuditOutcome> {
-  const { publicId, url, requestId } = job;
+  const { publicId, url, requestId, traceparent, tracestate } = job;
   const jobLogger = deps.logger.child({
     requestId: requestId ?? "unknown",
     publicId,
   });
-  jobLogger.info({ url }, "audit job start");
-  await deps.model.updateOne({ publicId }, { $set: { status: "running" } });
-  auditsInFlight.inc();
-  const stop = auditDurationSeconds.startTimer();
-  try {
-    const result = await deps.runAudit(url);
-    await deps.model.updateOne({ publicId }, { $set: { status: "done", ...result } });
-    jobLogger.info({ score: result.score }, "audit job done");
-    return result;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    await deps.model.updateOne({ publicId }, { $set: { status: "failed", error: message } });
-    auditFailureTotal.inc({ reason: classifyError(err) });
-    jobLogger.error({ err }, "audit job failed");
-    throw err;
-  } finally {
-    stop();
-    auditsInFlight.dec();
-  }
+  // Resume the trace started on the api side so the worker span shares
+  // the same trace id. Falls through unchanged when no traceparent was
+  // attached (OTel SDK not started, or producer ran before this branch
+  // landed).
+  return withRestoredContext({ traceparent, tracestate }, async () =>
+    withSpan(
+      "audit.process",
+      {
+        "audit.public_id": publicId,
+        "audit.url_host": (() => {
+          try {
+            return new URL(url).hostname;
+          } catch {
+            return "unknown";
+          }
+        })(),
+      },
+      async () => {
+        jobLogger.info({ url }, "audit job start");
+        await deps.model.updateOne({ publicId }, { $set: { status: "running" } });
+        auditsInFlight.inc();
+        const stop = auditDurationSeconds.startTimer();
+        try {
+          const result = await deps.runAudit(url);
+          await deps.model.updateOne({ publicId }, { $set: { status: "done", ...result } });
+          jobLogger.info({ score: result.score }, "audit job done");
+          return result;
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          await deps.model.updateOne({ publicId }, { $set: { status: "failed", error: message } });
+          auditFailureTotal.inc({ reason: classifyError(err) });
+          jobLogger.error({ err }, "audit job failed");
+          throw err;
+        } finally {
+          stop();
+          auditsInFlight.dec();
+        }
+      }
+    )
+  );
 }

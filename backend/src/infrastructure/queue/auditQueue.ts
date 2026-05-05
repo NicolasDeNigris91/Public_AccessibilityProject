@@ -7,6 +7,11 @@ export interface AuditJobData {
   // Propagated from the HTTP layer so worker logs and DB audit trails share a
   // single correlation id with the request that enqueued the job.
   requestId?: string;
+  // W3C trace context attached by the producer so the worker can resume
+  // the trace started by the api request. Undefined when no OTel SDK
+  // is started.
+  traceparent?: string;
+  tracestate?: string;
 }
 
 /**

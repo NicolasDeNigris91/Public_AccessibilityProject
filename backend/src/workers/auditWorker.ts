@@ -1,3 +1,6 @@
+// Telemetry MUST be the very first import so the OTel hooks wrap
+// puppeteer / mongoose / ioredis / bullmq before they load.
+import "@/instrumentationWorker";
 import http from "node:http";
 import { Worker } from "bullmq";
 import mongoose from "mongoose";
@@ -16,6 +19,7 @@ import { buildAuditResult, type AxeRawResult } from "@/domain/axeResult";
 import { puppeteerBrowserRelaunchTotal, registry } from "@/infrastructure/metrics/registry";
 import { startQueueDepthSampler } from "@/infrastructure/metrics/queueDepth";
 import { auditDeadQueue, auditQueue } from "@/infrastructure/queue/auditQueue";
+import { withSpan } from "@/infrastructure/telemetry/spans";
 import { processAuditJob } from "./dispatch";
 import { moveToDeadLetterIfFinal } from "./dlq";
 
@@ -53,6 +57,12 @@ async function getBrowser(): Promise<Browser> {
 }
 
 async function runAudit(url: string) {
+  return withSpan("audit.run", { "audit.url_host": new URL(url).hostname }, () =>
+    runAuditInner(url)
+  );
+}
+
+async function runAuditInner(url: string) {
   const start = Date.now();
   // Defense in depth against DNS rebinding:
   //   1. assertSafeUrl: same DNS check the intake did, in case anything
