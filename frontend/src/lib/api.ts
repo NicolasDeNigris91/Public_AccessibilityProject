@@ -8,6 +8,8 @@ interface ApiErrorBody {
 }
 
 // Thrown on any non-2xx. Carries the backend error envelope when present.
+// exactOptionalPropertyTypes: only assign optional fields when defined,
+// otherwise leave them off entirely.
 export class ApiError extends Error {
   readonly status: number;
   readonly code?: string;
@@ -16,8 +18,8 @@ export class ApiError extends Error {
     super(body?.error?.message ?? `API error ${status}`);
     this.name = "ApiError";
     this.status = status;
-    this.code = body?.error?.code;
-    this.requestId = body?.requestId;
+    if (body?.error?.code !== undefined) this.code = body.error.code;
+    if (body?.requestId !== undefined) this.requestId = body.requestId;
   }
 }
 

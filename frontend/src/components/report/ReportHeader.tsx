@@ -8,7 +8,7 @@ interface ReportHeaderProps {
   score: number;
   createdAt?: string;
   onReaudit?: () => void;
-  headingRef?: Ref<HTMLHeadingElement>;
+  headingRef?: Ref<HTMLHeadingElement> | undefined;
 }
 
 export function ReportHeader({ url, score, createdAt, onReaudit, headingRef }: ReportHeaderProps) {

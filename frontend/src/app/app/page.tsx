@@ -74,7 +74,7 @@ export default function DashboardPage() {
   );
 }
 
-function AuditsTable({ audits }: { audits?: AuditSummary[] }) {
+function AuditsTable({ audits }: { audits: AuditSummary[] | undefined }) {
   if (!audits || audits.length === 0) {
     return (
       <p className="rounded border border-dashed border-line py-12 text-center text-muted">
@@ -106,9 +106,11 @@ function AuditsTable({ audits }: { audits?: AuditSummary[] }) {
                 </Link>
               </td>
               <td className="px-4 py-3">
-                <Badge severity={a.status === "failed" ? "critical" : undefined}>
-                  {STATUS_LABEL[a.status]}
-                </Badge>
+                {a.status === "failed" ? (
+                  <Badge severity="critical">{STATUS_LABEL[a.status]}</Badge>
+                ) : (
+                  <Badge>{STATUS_LABEL[a.status]}</Badge>
+                )}
               </td>
               <td className="px-4 py-3 font-mono">
                 {a.score != null ? a.score : <span className="text-muted">—</span>}
