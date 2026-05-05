@@ -107,18 +107,25 @@ async function main() {
    *       503: { description: One or more dependencies unreachable }
    */
   app.get("/ready", async (_req, res) => {
-    const [redisOk, mongoOk] = await Promise.all([
+    const [redisOk, mongoOk, queueOk] = await Promise.all([
       redisConnection
         .ping()
         .then((r) => r === "PONG")
         .catch(() => false),
       pingMongo(),
+      // Queue health goes beyond Redis ping: BullMQ has its own client + key
+      // namespace and can be wedged when Redis is otherwise responsive.
+      auditQueue
+        .getJobCounts("wait", "active")
+        .then(() => true)
+        .catch(() => false),
     ]);
-    const ready = redisOk && mongoOk;
+    const ready = redisOk && mongoOk && queueOk;
     res.status(ready ? 200 : 503).json({
       status: ready ? "ready" : "degraded",
       redis: redisOk,
       mongo: mongoOk,
+      queue: queueOk,
       uptime: process.uptime(),
     });
   });

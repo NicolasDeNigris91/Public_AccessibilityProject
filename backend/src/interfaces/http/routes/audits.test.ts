@@ -22,6 +22,13 @@ jest.mock("@/application/assertSafeUrl", () => {
   };
 });
 
+// Stub the per-clientId rate limiter to a pass-through; the limiter has its
+// own dedicated test suite. Avoids spinning up Redis here.
+jest.mock("../middlewares/clientIdRateLimit", () => ({
+  clientIdRateLimit: () => (_req: unknown, _res: unknown, next: () => void) => next(),
+}));
+jest.mock("@/infrastructure/queue/connection", () => ({ redisConnection: {} }));
+
 import { AuditModel } from "@/infrastructure/db/AuditModel";
 import { auditQueue } from "@/infrastructure/queue/auditQueue";
 import { assertSafeUrl, UnsafeUrlError } from "@/application/assertSafeUrl";

@@ -19,6 +19,11 @@ jest.mock("@/application/assertSafeUrl", () => {
   };
 });
 
+jest.mock("../middlewares/clientIdRateLimit", () => ({
+  clientIdRateLimit: () => (_req: unknown, _res: unknown, next: () => void) => next(),
+}));
+jest.mock("@/infrastructure/queue/connection", () => ({ redisConnection: {} }));
+
 import { AuditModel } from "@/infrastructure/db/AuditModel";
 import { auditsRouter } from "./audits";
 import { errorHandler } from "../middlewares/errorHandler";
