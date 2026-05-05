@@ -45,4 +45,10 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+// Wrap with @next/bundle-analyzer; opt-in via ANALYZE=true so normal builds
+// don't pay the cost.
+const withBundleAnalyzer = require("@next/bundle-analyzer")({
+  enabled: process.env.ANALYZE === "true",
+});
+
+module.exports = withBundleAnalyzer(nextConfig);
