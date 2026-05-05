@@ -9,6 +9,8 @@ const config: Config = {
     ".(css|scss)$": "<rootDir>/__mocks__/styleMock.js",
   },
   testMatch: ["<rootDir>/src/**/*.test.{ts,tsx}"],
+  // Playwright specs live in e2e/ and run via `npm run e2e`, not Jest.
+  testPathIgnorePatterns: ["/node_modules/", "/e2e/", "/playwright-report/", "/test-results/"],
   transform: {
     "^.+\\.tsx?$": ["ts-jest", { tsconfig: { jsx: "react-jsx" } }],
   },
