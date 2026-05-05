@@ -16,6 +16,8 @@ import { AuditModel } from "@/infrastructure/db/AuditModel";
 import { redisConnection } from "@/infrastructure/queue/connection";
 import { auditsRouter } from "@/interfaces/http/routes/audits";
 import { rumRouter } from "@/interfaces/http/routes/rum";
+import { auditEventsRouter } from "@/interfaces/http/routes/auditEvents";
+import * as auditEventsBus from "@/infrastructure/queue/auditEventsBus";
 import { errorHandler } from "@/interfaces/http/middlewares/errorHandler";
 import { requestId } from "@/interfaces/http/middlewares/requestId";
 import { mountSwagger } from "@/interfaces/http/swagger";
@@ -147,6 +149,11 @@ async function main() {
     res.end(await registry.metrics());
   });
 
+  // Mount SSE event stream BEFORE the json/rate-limit-protected
+  // routes since the long-lived connection should not consume an
+  // entry from the per-IP minute window. Body limit doesn't matter
+  // for GETs, but ordering keeps it explicit.
+  app.use("/api/audits", auditEventsRouter);
   app.use("/api/audits", auditsRouter);
   // RUM beacon endpoint: tiny JSON, no auth, fire-and-forget. Sits
   // under the IP-level rate-limit (mounted globally above) so a noisy
@@ -189,6 +196,9 @@ async function main() {
       await new Promise<void>((resolve, reject) =>
         server.close((err) => (err ? reject(err) : resolve()))
       );
+      await auditEventsBus
+        .stop()
+        .catch((err) => logger.warn({ err }, "audit events bus stop failed"));
       await mongoose
         .disconnect()
         .catch((err) => logger.warn({ err }, "mongoose disconnect failed"));

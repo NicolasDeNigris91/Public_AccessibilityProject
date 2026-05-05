@@ -2,16 +2,16 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type Ref } from "react";
-import useSWR from "swr";
 import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 import { ReportHeader } from "@/components/report/ReportHeader";
 import { SeverityBreakdown } from "@/components/report/SeverityBreakdown";
 import { ViolationCard } from "@/components/report/ViolationCard";
-import { API_URL, fetcher, postJson } from "@/lib/api";
-import { deriveAuditState, pollingIntervalFor } from "@/lib/auditState";
+import { API_URL, postJson } from "@/lib/api";
+import { deriveAuditState } from "@/lib/auditState";
 import { copy } from "@/lib/copy";
 import { submitErrorMessage } from "@/lib/errorMessages";
+import { useAuditStream } from "@/lib/useAuditStream";
 import type { AuditDetail } from "@/lib/types";
 import { ReauditAlert, StatusShell } from "./StatusShell";
 
@@ -31,14 +31,7 @@ export function AuditDetailView({ id }: { id: string }) {
     headingRef.current?.focus({ preventScroll: false });
   }, [id]);
 
-  const { data, error, isLoading, mutate } = useSWR<AuditDetail>(
-    `${API_URL}/api/audits/${id}`,
-    fetcher,
-    {
-      refreshInterval: pollingIntervalFor,
-      shouldRetryOnError: false,
-    }
-  );
+  const { data, error, isLoading, mutate } = useAuditStream(id);
 
   const state = deriveAuditState(data, error, isLoading);
   const s = copy.report.states;
