@@ -61,6 +61,25 @@ describe("clientIdRateLimit", () => {
     expect(b.status).toBe(202);
   });
 
+  it("calls next with AppError(400, invalid_client_id) when req.clientId is missing", async () => {
+    // Defense in depth: if the route forgets to mount requireClientId
+    // first, the rate limiter must refuse rather than rate-limit a
+    // shared/empty key.
+    const handler = clientIdRateLimit({
+      redis: new RedisMock() as unknown as Redis,
+      windowMs: 60_000,
+      max: 1,
+      keyPrefix: "test:no-client",
+    });
+    const next = jest.fn();
+    await handler({} as Parameters<typeof handler>[0], {} as Parameters<typeof handler>[1], next);
+    expect(next).toHaveBeenCalledTimes(1);
+    const err = next.mock.calls[0]?.[0];
+    expect(err).toBeInstanceOf(AppError);
+    expect((err as AppError).status).toBe(400);
+    expect((err as AppError).code).toBe("invalid_client_id");
+  });
+
   it("fails open if redis is unreachable", async () => {
     const broken = {
       multi: () => ({
