@@ -65,3 +65,60 @@ export const auditDeadLetterTotal = new Counter({
   labelNames: ["reason"],
   registers: [registry],
 });
+
+/**
+ * Real User Monitoring — Core Web Vitals reported by the frontend.
+ * Each metric has its own histogram with buckets sized to the
+ * Web Vitals "good / needs improvement / poor" thresholds. Route is
+ * the page route (e.g. "/", "/app", "/audits/[id]"); never the URL
+ * with parameters baked in (cardinality control).
+ */
+export const webVitalLcpSeconds = new Histogram({
+  name: "web_vital_lcp_seconds",
+  help: "Largest Contentful Paint reported by web-vitals on the client",
+  labelNames: ["route"],
+  // Web Vitals: good <=2.5s, needs improvement 2.5-4s, poor >4s.
+  buckets: [0.5, 1, 1.5, 2, 2.5, 3, 4, 5, 7.5, 10],
+  registers: [registry],
+});
+
+export const webVitalInpSeconds = new Histogram({
+  name: "web_vital_inp_seconds",
+  help: "Interaction to Next Paint reported by web-vitals on the client",
+  labelNames: ["route"],
+  // Web Vitals: good <=200ms, needs improvement 200-500ms, poor >500ms.
+  buckets: [0.05, 0.1, 0.15, 0.2, 0.3, 0.5, 0.75, 1, 1.5, 3],
+  registers: [registry],
+});
+
+export const webVitalFcpSeconds = new Histogram({
+  name: "web_vital_fcp_seconds",
+  help: "First Contentful Paint reported by web-vitals on the client",
+  labelNames: ["route"],
+  buckets: [0.25, 0.5, 1, 1.5, 1.8, 2.5, 3, 4, 5, 7.5],
+  registers: [registry],
+});
+
+export const webVitalTtfbSeconds = new Histogram({
+  name: "web_vital_ttfb_seconds",
+  help: "Time to First Byte reported by web-vitals on the client",
+  labelNames: ["route"],
+  buckets: [0.05, 0.1, 0.2, 0.4, 0.6, 0.8, 1, 1.5, 2, 3],
+  registers: [registry],
+});
+
+export const webVitalCls = new Histogram({
+  name: "web_vital_cls",
+  help: "Cumulative Layout Shift reported by web-vitals on the client (unitless)",
+  labelNames: ["route"],
+  // CLS is unitless; good <=0.1, needs improvement 0.1-0.25, poor >0.25.
+  buckets: [0.01, 0.025, 0.05, 0.1, 0.15, 0.25, 0.5, 1],
+  registers: [registry],
+});
+
+export const webVitalRejectedTotal = new Counter({
+  name: "web_vital_rejected_total",
+  help: "RUM beacons rejected at the api boundary, by reason",
+  labelNames: ["reason"], // shape | route | name | value
+  registers: [registry],
+});
