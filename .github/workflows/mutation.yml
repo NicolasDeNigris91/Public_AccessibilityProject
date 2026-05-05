@@ -1,0 +1,47 @@
+name: Mutation testing
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/src/domain/**"
+      - "backend/stryker.config.json"
+      - ".github/workflows/mutation.yml"
+  pull_request:
+    paths:
+      - "backend/src/domain/**"
+      - "backend/stryker.config.json"
+      - ".github/workflows/mutation.yml"
+  schedule:
+    # Mondays 04:00 UTC. Catches drift even when domain/ has not changed.
+    - cron: "0 4 * * 1"
+
+concurrency:
+  group: mutation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  stryker:
+    name: Stryker (backend domain)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Run Stryker
+        run: npm run mutation --workspace backend
+
+      - name: Upload mutation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-report
+          path: backend/reports/mutation/
+          retention-days: 14

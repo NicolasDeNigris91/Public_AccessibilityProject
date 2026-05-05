@@ -8,7 +8,9 @@
     "worker": "tsx watch src/workers/auditWorker.ts",
     "start": "node dist/server.js",
     "test": "jest --passWithNoTests",
-    "lint": "eslint \"src/**/*.ts\" --max-warnings=0"
+    "test:coverage": "jest --coverage",
+    "lint": "eslint \"src/**/*.ts\" --max-warnings=0",
+    "mutation": "stryker run"
   },
   "dependencies": {
     "axe-core": "^4.10.0",
@@ -38,6 +40,9 @@
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.6",
     "@types/uuid": "^10.0.0",
+    "@stryker-mutator/core": "^8.5.0",
+    "@stryker-mutator/jest-runner": "^8.5.0",
+    "@stryker-mutator/typescript-checker": "^8.5.0",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
     "eslint": "^8.57.0",

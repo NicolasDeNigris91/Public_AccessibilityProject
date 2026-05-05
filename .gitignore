@@ -9,6 +9,8 @@ out/
 
 # Testing
 coverage/
+reports/
+.stryker-tmp/
 
 # TypeScript incremental
 *.tsbuildinfo
