@@ -14,6 +14,7 @@
     "lint": "npm --workspace backend run lint && npm --workspace frontend run lint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "smoke:load": "k6 run tests/load/smoke.k6.js",
     "changeset": "changeset",
     "version": "changeset version",
     "release": "changeset publish",

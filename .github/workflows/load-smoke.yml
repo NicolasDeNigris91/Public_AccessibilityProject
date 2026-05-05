@@ -1,0 +1,84 @@
+name: Load smoke (k6)
+
+# k6 smoke against a full docker-compose stack (mongo + redis + api +
+# worker). Encodes the four SLOs from docs/SLO.md as inline thresholds
+# so a regression breaks the run.
+#
+# Cadence: weekly + on-demand. NOT on every PR — running Puppeteer in
+# Docker on a fresh runner takes time that doesn't pay off on each
+# small change. The PR critical path stays at the unit + integration
+# + Playwright + lighthouse + bundle:check level.
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Wednesdays 03:00 UTC — far from the busy main-merge window so a
+    # red drill doesn't compete with feature CI.
+    - cron: "0 3 * * 3"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: load-smoke-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    name: k6 smoke against docker-compose
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      # The compose stack reads .env. We only need the bits the api +
+      # worker care about — frontend isn't started in this drill.
+      - name: Write .env
+        run: |
+          cat <<'EOF' > .env
+          NODE_ENV=production
+          MONGO_URI=mongodb://mongo:27017/euthus
+          REDIS_HOST=redis
+          REDIS_PORT=6379
+          PORT=4000
+          AUDIT_TIMEOUT_MS=45000
+          MAX_CONCURRENT_AUDITS=2
+          CORS_ORIGIN=http://localhost:3000
+          LOG_LEVEL=warn
+          EOF
+
+      - name: Boot stack (api + worker + mongo + redis)
+        run: docker compose up -d --build mongo redis api worker
+
+      - name: Wait for /ready
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:4000/ready >/dev/null 2>&1; then
+              echo "ready after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "api never became ready"
+          docker compose logs --no-color
+          exit 1
+
+      - name: Install k6
+        run: |
+          curl -fsSL https://dl.k6.io/key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/k6-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install -y k6
+
+      - name: Run k6 smoke
+        env:
+          API_URL: http://localhost:4000
+        run: k6 run tests/load/smoke.k6.js
+
+      - name: Capture stack logs on failure
+        if: failure()
+        run: docker compose logs --no-color --tail=500
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
