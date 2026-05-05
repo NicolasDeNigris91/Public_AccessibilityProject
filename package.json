@@ -37,5 +37,8 @@
     "*.{ts,tsx,js,jsx,cjs,mjs,json,md,yml,yaml,css}": [
       "prettier --write"
     ]
+  },
+  "overrides": {
+    "basic-ftp": "^6.0.1"
   }
 }

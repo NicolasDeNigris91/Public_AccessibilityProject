@@ -37,11 +37,17 @@ async function fetchAuditUrl(id: string): Promise<string | undefined> {
   }
 }
 
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
-  const url = await fetchAuditUrl(params.id);
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const url = await fetchAuditUrl(id);
   return { title: url ? auditTitle(url) : AUDIT_TITLE_FALLBACK };
 }
 
-export default function Page({ params }: { params: { id: string } }) {
-  return <AuditDetailView id={params.id} />;
+export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  return <AuditDetailView id={id} />;
 }
