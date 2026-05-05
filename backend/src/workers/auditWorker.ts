@@ -8,8 +8,10 @@ import { connectMongo } from "@/infrastructure/db/mongo";
 import { AuditModel } from "@/infrastructure/db/AuditModel";
 import { redisConnection } from "@/infrastructure/queue/connection";
 import { AUDIT_QUEUE, AuditJobData } from "@/infrastructure/queue/auditQueue";
-import { assertSafeUrl, isSyncSafeUrl } from "@/application/assertSafeUrl";
+import { assertSafeUrl } from "@/application/assertSafeUrl";
+import { classifySubrequest } from "@/application/subrequestPolicy";
 import { buildAuditResult, type AxeRawResult } from "@/domain/axeResult";
+import { processAuditJob } from "./dispatch";
 
 // Leave a few seconds for browser close + mongoose disconnect before SIGKILL.
 const SHUTDOWN_TIMEOUT_MS = 25_000;
@@ -56,11 +58,8 @@ async function runAudit(url: string) {
     await page.setRequestInterception(true);
     page.on("request", (request) => {
       const reqUrl = request.url();
-      if (/^(data|blob):/i.test(reqUrl)) {
-        request.continue().catch(() => {});
-        return;
-      }
-      if (!isSyncSafeUrl(reqUrl)) {
+      const decision = classifySubrequest(reqUrl);
+      if (decision === "abort") {
         logger.warn({ blockedUrl: reqUrl, parentUrl: url }, "blocked unsafe subrequest");
         request.abort("blockedbyclient").catch(() => {});
         return;
@@ -90,23 +89,11 @@ async function main() {
   const worker = new Worker<AuditJobData>(
     AUDIT_QUEUE,
     async (job) => {
-      const { publicId, url, requestId } = job.data;
-      const jobLogger = logger.child({
-        requestId: requestId ?? "unknown",
-        publicId,
+      await processAuditJob(job.data, {
+        runAudit,
+        model: AuditModel,
+        logger,
       });
-      jobLogger.info({ url }, "audit job start");
-      await AuditModel.updateOne({ publicId }, { $set: { status: "running" } });
-      try {
-        const result = await runAudit(url);
-        await AuditModel.updateOne({ publicId }, { $set: { status: "done", ...result } });
-        jobLogger.info({ score: result.score }, "audit job done");
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        await AuditModel.updateOne({ publicId }, { $set: { status: "failed", error: message } });
-        jobLogger.error({ err }, "audit job failed");
-        throw err;
-      }
     },
     {
       connection: redisConnection,
