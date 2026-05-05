@@ -5,8 +5,20 @@ import { assertSafeUrl, UnsafeUrlError } from "@/application/assertSafeUrl";
 import { AuditModel } from "@/infrastructure/db/AuditModel";
 import { auditQueue, type AuditJobData } from "@/infrastructure/queue/auditQueue";
 import { auditsEnqueuedTotal } from "@/infrastructure/metrics/registry";
+import { redisConnection } from "@/infrastructure/queue/connection";
 import { AppError } from "../middlewares/errorHandler";
 import { requireClientId } from "../middlewares/clientId";
+import { clientIdRateLimit } from "../middlewares/clientIdRateLimit";
+
+// Per-clientId cap: 30 submissions / hour. The IP-level cap (set in
+// server.ts) still applies. Tightens the cap that previously trusted IP
+// alone, which is trivial to bypass behind shared NAT.
+const submitRateLimit = clientIdRateLimit({
+  redis: redisConnection,
+  windowMs: 60 * 60 * 1000,
+  max: 30,
+  keyPrefix: "rl:audits:submit",
+});
 
 export const auditsRouter = Router();
 
@@ -48,7 +60,7 @@ const CreateAuditBody = z.object({
  *       500:
  *         $ref: '#/components/responses/ServerError'
  */
-auditsRouter.post("/", requireClientId, async (req, res) => {
+auditsRouter.post("/", requireClientId, submitRateLimit, async (req, res) => {
   const parsed = CreateAuditBody.safeParse(req.body);
   if (!parsed.success) throw new AppError(400, "invalid_url");
 
