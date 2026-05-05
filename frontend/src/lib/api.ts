@@ -33,16 +33,36 @@ export async function apiFetch(
   return fetch(input, { ...init, headers });
 }
 
+async function readErrorBody(res: Response): Promise<ApiErrorBody | undefined> {
+  try {
+    return (await res.json()) as ApiErrorBody;
+  } catch {
+    // Non-JSON body (e.g. express-rate-limit default), fall back to status only.
+    return undefined;
+  }
+}
+
 export const fetcher = async <T>(url: string): Promise<T> => {
   const res = await apiFetch(url);
   if (!res.ok) {
-    let body: ApiErrorBody | undefined;
-    try {
-      body = (await res.json()) as ApiErrorBody;
-    } catch {
-      // Non-JSON body, fall back to status only.
-    }
-    throw new ApiError(res.status, body);
+    throw new ApiError(res.status, await readErrorBody(res));
   }
   return res.json() as Promise<T>;
 };
+
+/**
+ * POST JSON helper that throws ApiError on non-2xx, parsing the backend
+ * error envelope when present. Use this for write endpoints where the
+ * caller wants to branch on `code` or surface a human message.
+ */
+export async function postJson<T>(url: string, body: unknown): Promise<T> {
+  const res = await apiFetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    throw new ApiError(res.status, await readErrorBody(res));
+  }
+  return res.json() as Promise<T>;
+}

@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import { ApiError, apiFetch, fetcher } from "./api";
+import { ApiError, apiFetch, fetcher, postJson } from "./api";
 
 describe("apiFetch", () => {
   beforeEach(() => {
@@ -113,5 +113,68 @@ describe("fetcher", () => {
     expect(err.code).toBeUndefined();
     expect(err.requestId).toBeUndefined();
     expect(err.message).toBe("API error 500");
+  });
+});
+
+describe("postJson", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    localStorage.setItem("euthus-client-id", "550e8400-e29b-41d4-a716-446655440000");
+  });
+
+  it("sends POST with JSON content-type and X-Client-Id, returns parsed body on 2xx", async () => {
+    const mock = jest.fn().mockResolvedValue(
+      new Response(JSON.stringify({ publicId: "abc", status: "queued" }), {
+        status: 202,
+        headers: { "content-type": "application/json" },
+      })
+    );
+    global.fetch = mock as unknown as typeof fetch;
+
+    await expect(
+      postJson<{ publicId: string }>("https://api.example.com/api/audits", {
+        url: "https://example.com",
+      })
+    ).resolves.toEqual({ publicId: "abc", status: "queued" });
+
+    const [, init] = mock.mock.calls[0];
+    expect(init.method).toBe("POST");
+    const headers = new Headers(init.headers);
+    expect(headers.get("content-type")).toBe("application/json");
+    expect(headers.get("x-client-id")).toBe("550e8400-e29b-41d4-a716-446655440000");
+    expect(init.body).toBe(JSON.stringify({ url: "https://example.com" }));
+  });
+
+  it("throws ApiError carrying the envelope code on 4xx", async () => {
+    global.fetch = jest.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: { code: "unsafe_target", message: "private network" },
+          requestId: "req-1",
+        }),
+        { status: 400, headers: { "content-type": "application/json" } }
+      )
+    ) as unknown as typeof fetch;
+
+    await expect(postJson("https://api.example.com/x", {})).rejects.toMatchObject({
+      name: "ApiError",
+      status: 400,
+      code: "unsafe_target",
+      requestId: "req-1",
+    });
+  });
+
+  it("throws ApiError on 4xx even when the body is non-JSON (rate-limit default)", async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValue(
+        new Response("Too many requests, please try again later.", { status: 429 })
+      ) as unknown as typeof fetch;
+
+    await expect(postJson("https://api.example.com/x", {})).rejects.toMatchObject({
+      name: "ApiError",
+      status: 429,
+      code: undefined,
+    });
   });
 });
