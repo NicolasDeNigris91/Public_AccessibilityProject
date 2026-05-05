@@ -68,8 +68,13 @@ async function runAudit(url: string) {
   const pinnedIp = await resolveSafeAddress(hostname);
   logger.debug({ url, pinnedIp }, "audit target resolved");
 
+  // Isolation: a fresh BrowserContext per job means cookies, localStorage,
+  // service workers and IndexedDB from one audit cannot influence the next.
+  // The browser process is still reused across jobs, so we keep the launch-
+  // cost amortization win.
   const b = await getBrowser();
-  const page = await b.newPage();
+  const context = await b.createBrowserContext();
+  const page = await context.newPage();
   try {
     await page.setViewport({ width: 1366, height: 900 });
     await page.setRequestInterception(true);
@@ -96,12 +101,23 @@ async function runAudit(url: string) {
     };
   } finally {
     await page.close().catch(() => {});
+    await context.close().catch(() => {});
   }
 }
 
 async function main() {
   await connectMongo();
   logger.info("worker starting");
+
+  // Warm the browser at boot so the first real audit does not pay the
+  // ~2 s puppeteer.launch latency. Failure here is non-fatal — we will
+  // try again lazily when the first job arrives.
+  try {
+    await getBrowser();
+    logger.info("puppeteer warmed");
+  } catch (err) {
+    logger.warn({ err }, "puppeteer warmup failed; will retry on first job");
+  }
 
   // Worker exposes /metrics on its own port so a sidecar / Grafana Agent can
   // scrape it independently of the api. /healthz lets orchestrators know the
