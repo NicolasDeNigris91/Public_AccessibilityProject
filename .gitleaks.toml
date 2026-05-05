@@ -1,0 +1,22 @@
+# Gitleaks config. Inherits the default ruleset; only adds repo-specific
+# allowlists for files that intentionally contain secret-shaped tokens
+# (test fixtures, lockfiles, env examples without real values).
+#
+# Rule of thumb: if you allowlist anything here, leave a comment with
+# the *reason*. "False positive" is not a reason.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Repo-specific exceptions"
+paths = [
+  # package-lock checksums are SHA-512 hashes, not secrets.
+  '''package-lock\.json''',
+  # Stryker cache file: deterministic hashes from source code.
+  '''backend/reports/.*''',
+  # .env.example only documents variable names; real values never live here.
+  '''\.env\.example''',
+  # The repo's own quality-audit doc may quote example tokens / IPs.
+  '''docs/QUALITY-AUDIT\.md''',
+]
