@@ -10,6 +10,7 @@ import { AuditModel } from "@/infrastructure/db/AuditModel";
 import { redisConnection } from "@/infrastructure/queue/connection";
 import { AUDIT_QUEUE, AuditJobData } from "@/infrastructure/queue/auditQueue";
 import { assertSafeUrl } from "@/application/assertSafeUrl";
+import { resolveSafeAddress } from "@/application/resolveSafeAddress";
 import { classifySubrequest } from "@/application/subrequestPolicy";
 import { buildAuditResult, type AxeRawResult } from "@/domain/axeResult";
 import { puppeteerBrowserRelaunchTotal, registry } from "@/infrastructure/metrics/registry";
@@ -52,14 +53,25 @@ async function getBrowser(): Promise<Browser> {
 
 async function runAudit(url: string) {
   const start = Date.now();
-  // DNS could have changed since intake.
+  // Defense in depth against DNS rebinding:
+  //   1. assertSafeUrl: same DNS check the intake did, in case anything
+  //      drifted on the queue.
+  //   2. resolveSafeAddress: throws if any current resolution returns a
+  //      private IP, even partially. Fully pinning Chromium's resolver
+  //      would require relaunching the browser per job (--host-resolver-
+  //      rules) and giving up the browser-reuse perf win — the cost of
+  //      pinning outweighs the residual rebinding window for this app.
+  //      The logged pinned IP makes any post-incident forensics easier.
   await assertSafeUrl(url);
+  const parsedUrl = new URL(url);
+  const hostname = parsedUrl.hostname.replace(/^\[|\]$/g, "");
+  const pinnedIp = await resolveSafeAddress(hostname);
+  logger.debug({ url, pinnedIp }, "audit target resolved");
 
   const b = await getBrowser();
   const page = await b.newPage();
   try {
     await page.setViewport({ width: 1366, height: 900 });
-    // Block subresources / redirects pointing at literal private IPs.
     await page.setRequestInterception(true);
     page.on("request", (request) => {
       const reqUrl = request.url();
