@@ -1,3 +1,6 @@
+// Telemetry MUST be the very first import so the OTel hooks wrap
+// express / mongoose / ioredis before they load. See instrumentationApi.ts.
+import "@/instrumentationApi";
 import "express-async-errors";
 import http from "node:http";
 import express from "express";

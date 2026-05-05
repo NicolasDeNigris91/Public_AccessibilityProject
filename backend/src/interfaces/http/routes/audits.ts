@@ -6,6 +6,7 @@ import { AuditModel } from "@/infrastructure/db/AuditModel";
 import { auditQueue, type AuditJobData } from "@/infrastructure/queue/auditQueue";
 import { auditsEnqueuedTotal } from "@/infrastructure/metrics/registry";
 import { redisConnection } from "@/infrastructure/queue/connection";
+import { captureTraceparent, withSpan } from "@/infrastructure/telemetry/spans";
 import { AppError } from "../middlewares/errorHandler";
 import { requireClientId } from "../middlewares/clientId";
 import { clientIdRateLimit } from "../middlewares/clientIdRateLimit";
@@ -72,18 +73,30 @@ auditsRouter.post("/", requireClientId, submitRateLimit, async (req, res) => {
   }
 
   const publicId = uuid();
-  await AuditModel.create({
-    publicId,
-    clientId: req.clientId,
-    url: parsed.data.url,
-    status: "queued",
-  });
-  // exactOptionalPropertyTypes forbids passing `requestId: undefined` against
-  // an optional field, so build the payload conditionally.
-  const jobData: AuditJobData = { publicId, url: parsed.data.url };
-  if (req.requestId !== undefined) jobData.requestId = req.requestId;
-  await auditQueue.add("audit", jobData, { jobId: publicId });
-  auditsEnqueuedTotal.inc();
+  await withSpan(
+    "audit.enqueue",
+    { "audit.public_id": publicId, "audit.url_host": new URL(parsed.data.url).hostname },
+    async () => {
+      await AuditModel.create({
+        publicId,
+        clientId: req.clientId,
+        url: parsed.data.url,
+        status: "queued",
+      });
+      // exactOptionalPropertyTypes forbids passing `requestId: undefined`
+      // against an optional field, so build the payload conditionally.
+      const jobData: AuditJobData = { publicId, url: parsed.data.url };
+      if (req.requestId !== undefined) jobData.requestId = req.requestId;
+      // Attach W3C trace context so the worker can resume this trace.
+      const tp = captureTraceparent();
+      if (tp) {
+        jobData.traceparent = tp.traceparent;
+        if (tp.tracestate) jobData.tracestate = tp.tracestate;
+      }
+      await auditQueue.add("audit", jobData, { jobId: publicId });
+      auditsEnqueuedTotal.inc();
+    }
+  );
 
   res.status(202).json({ publicId, status: "queued" });
 });

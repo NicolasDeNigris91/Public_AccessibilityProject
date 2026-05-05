@@ -15,6 +15,12 @@ module.exports = {
     "!src/infrastructure/queue/**",
     "!src/interfaces/http/swagger.ts",
     "!src/config/**",
+    // OTel SDK boot is integration glue: it wires NodeSDK + auto-
+    // instrumentations + an exporter. The noop path is unit-tested in
+    // tracer.test.ts; the SDK-on path requires a live collector.
+    "!src/infrastructure/telemetry/tracer.ts",
+    "!src/instrumentationApi.ts",
+    "!src/instrumentationWorker.ts",
   ],
   coverageThreshold: {
     global: { lines: 80, functions: 80, statements: 80, branches: 75 },
