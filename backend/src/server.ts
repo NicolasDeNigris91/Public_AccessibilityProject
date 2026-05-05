@@ -15,6 +15,7 @@ import { connectMongo, pingMongo } from "@/infrastructure/db/mongo";
 import { AuditModel } from "@/infrastructure/db/AuditModel";
 import { redisConnection } from "@/infrastructure/queue/connection";
 import { auditsRouter } from "@/interfaces/http/routes/audits";
+import { rumRouter } from "@/interfaces/http/routes/rum";
 import { errorHandler } from "@/interfaces/http/middlewares/errorHandler";
 import { requestId } from "@/interfaces/http/middlewares/requestId";
 import { mountSwagger } from "@/interfaces/http/swagger";
@@ -147,6 +148,10 @@ async function main() {
   });
 
   app.use("/api/audits", auditsRouter);
+  // RUM beacon endpoint: tiny JSON, no auth, fire-and-forget. Sits
+  // under the IP-level rate-limit (mounted globally above) so a noisy
+  // sender can be capped without per-route knobs.
+  app.use("/api/rum", rumRouter);
   // Swagger UI requires inline styles; relax CSP only on the /docs subtree.
   mountSwagger(app);
   // Bull-Board admin UI behind basic auth. Skipped silently if the

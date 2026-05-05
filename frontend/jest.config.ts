@@ -22,6 +22,7 @@ const config: Config = {
     "!src/app/**",
     "!src/components/AxeDev.tsx",
     "!src/components/ColorBlindFilters.tsx",
+    "!src/components/RumTracker.tsx",
     "!src/components/shell/**",
   ],
   // No-regression baseline at the current measured numbers. Lift these as
