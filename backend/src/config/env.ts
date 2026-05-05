@@ -31,6 +31,36 @@ const schema = z.object({
   // the admin UI without credentials.
   ADMIN_USER: z.string().min(1).optional(),
   ADMIN_PASS: z.string().min(8).optional(),
+  // Soft-auth (magic-link). The provider is optional in dev/test (the
+  // factory falls back to consoleSender) but required in production: the
+  // /api/auth/magic-link route 503s with a clear hint when EMAIL_PROVIDER
+  // is unset in prod, so missing config never silently degrades to the
+  // console where logs may be public.
+  EMAIL_PROVIDER: z.enum(["resend"]).optional(),
+  RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().optional(),
+  WEB_BASE_URL: z.string().url().default("http://localhost:4000"),
+  APP_REDIRECT_URL: z.string().url().default("http://localhost:3000/app"),
+  // Optional Domain attribute on the session cookie. Set only when api
+  // and web share a parent (e.g. ".euthus.com"); otherwise leave unset
+  // and the cookie is host-locked.
+  AUTH_COOKIE_DOMAIN: z.string().optional(),
+  AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(5),
+  AUTH_RATE_LIMIT_WINDOW_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(60 * 60 * 1000),
+  SESSION_TTL_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(30 * 86_400_000),
+  MAGIC_LINK_TTL_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(15 * 60 * 1000),
 });
 
 const parsed = schema.safeParse(process.env);
