@@ -37,6 +37,14 @@ let mongo: MongoMemoryServer;
 function buildApp() {
   const app = express();
   app.use(express.json());
+  // Stub the optionalSession middleware in integration: any request that
+  // sets `X-Test-User-Id` is treated as authenticated. Mirrors the real
+  // route's contract without needing the magic-link round trip.
+  app.use((req, _res, next) => {
+    const id = req.header("X-Test-User-Id");
+    if (id) req.userId = id;
+    next();
+  });
   app.use("/api/audits", auditsRouter);
   app.use(errorHandler);
   return app;
@@ -74,6 +82,24 @@ describe("POST /api/audits (integration)", () => {
       status: "queued",
     });
     expect(stored?.createdAt).toBeInstanceOf(Date);
+    // Anonymous → no userId attached.
+    expect(stored?.userId).toBeFalsy();
+  });
+
+  it("attaches userId when a session is present (still records clientId)", async () => {
+    const userId = new mongoose.Types.ObjectId();
+    const res = await request(buildApp())
+      .post("/api/audits")
+      .set("X-Client-Id", VALID_ID)
+      .set("X-Test-User-Id", userId.toString())
+      .send({ url: "https://signed-in.example" });
+
+    expect(res.status).toBe(202);
+    const stored = await AuditModel.findOne({ url: "https://signed-in.example" }).lean();
+    expect(stored?.userId?.toString()).toBe(userId.toString());
+    // clientId still recorded so the merge-on-verify path keeps working
+    // for users who were anonymous on a different device first.
+    expect(stored?.clientId).toBe(VALID_ID);
   });
 });
 
@@ -242,6 +268,45 @@ describe("GET /api/audits (integration)", () => {
     expect(Object.keys(item).sort()).toEqual(
       ["createdAt", "publicId", "score", "status", "totals", "url"].sort()
     );
+  });
+
+  it("scopes the list by userId when a session is present, ignoring X-Client-Id", async () => {
+    const userId = new mongoose.Types.ObjectId();
+    await AuditModel.create([
+      { publicId: "p1", url: "https://x.example", userId, status: "done" },
+      { publicId: "p2", url: "https://y.example", clientId: VALID_ID, status: "done" },
+      { publicId: "p3", url: "https://z.example", userId, clientId: OTHER_ID, status: "done" },
+    ]);
+    const r = await request(buildApp())
+      .get("/api/audits")
+      .set("X-Client-Id", VALID_ID) // intentionally wrong — must be ignored
+      .set("X-Test-User-Id", userId.toString());
+    expect(r.status).toBe(200);
+    expect((r.body as Array<{ publicId: string }>).map((a) => a.publicId).sort()).toEqual([
+      "p1",
+      "p3",
+    ]);
+  });
+
+  it("does not require X-Client-Id when a session is present", async () => {
+    const userId = new mongoose.Types.ObjectId();
+    await AuditModel.create({
+      publicId: "session-only",
+      url: "https://so.example",
+      userId,
+      status: "done",
+    });
+    const r = await request(buildApp()).get("/api/audits").set("X-Test-User-Id", userId.toString());
+    expect(r.status).toBe(200);
+    expect((r.body as Array<{ publicId: string }>).map((a) => a.publicId)).toEqual([
+      "session-only",
+    ]);
+  });
+
+  it("400s with invalid_client_id when neither session nor X-Client-Id is present", async () => {
+    const r = await request(buildApp()).get("/api/audits");
+    expect(r.status).toBe(400);
+    expect(r.body).toMatchObject({ error: { code: "invalid_client_id" } });
   });
 
   it("caps results at 50", async () => {
