@@ -96,6 +96,42 @@ describe("POST /api/audits", () => {
     expect(AuditModel.create).not.toHaveBeenCalled();
     expect(auditQueue.add).not.toHaveBeenCalled();
   });
+
+  it("returns 400 invalid_url when the body is malformed", async () => {
+    const res = await request(buildApp())
+      .post("/api/audits")
+      .set("X-Client-Id", VALID_ID)
+      .send({ url: "not a url" });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({ error: { code: "invalid_url" } });
+    expect(AuditModel.create).not.toHaveBeenCalled();
+    expect(auditQueue.add).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 invalid_url when the body is missing the url field entirely", async () => {
+    const res = await request(buildApp()).post("/api/audits").set("X-Client-Id", VALID_ID).send({});
+
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({ error: { code: "invalid_url" } });
+  });
+
+  it("propagates non-UnsafeUrlError failures from assertSafeUrl as 500", async () => {
+    // Anything thrown by assertSafeUrl that isn't an UnsafeUrlError is a
+    // bug or an infra outage, not a client error. errorHandler maps it
+    // to a generic 500.
+    (assertSafeUrl as jest.Mock).mockRejectedValueOnce(new Error("dns module crashed"));
+
+    const res = await request(buildApp())
+      .post("/api/audits")
+      .set("X-Client-Id", VALID_ID)
+      .send({ url: "https://example.com" });
+
+    expect(res.status).toBe(500);
+    expect(res.body).toMatchObject({ error: { code: "internal_server_error" } });
+    expect(AuditModel.create).not.toHaveBeenCalled();
+    expect(auditQueue.add).not.toHaveBeenCalled();
+  });
 });
 
 describe("GET /api/audits", () => {
