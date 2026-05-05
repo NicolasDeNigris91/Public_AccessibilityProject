@@ -15,6 +15,10 @@ import { auditsRouter } from "@/interfaces/http/routes/audits";
 import { errorHandler } from "@/interfaces/http/middlewares/errorHandler";
 import { requestId } from "@/interfaces/http/middlewares/requestId";
 import { mountSwagger } from "@/interfaces/http/swagger";
+import { auditQueue } from "@/infrastructure/queue/auditQueue";
+import { httpMetricsMiddleware } from "@/infrastructure/metrics/httpMetrics";
+import { registry } from "@/infrastructure/metrics/registry";
+import { startQueueDepthSampler } from "@/infrastructure/metrics/queueDepth";
 
 // Time the API has to drain in-flight requests on SIGTERM before the
 // orchestrator sends SIGKILL. Match Railway's grace window (~30s).
@@ -55,6 +59,9 @@ async function main() {
   );
   app.use(express.json({ limit: "32kb" }));
   app.use(requestId);
+  // Record duration before any route runs so even rate-limited requests are
+  // observed.
+  app.use(httpMetricsMiddleware);
   app.use(
     pinoHttp({
       logger,
@@ -116,10 +123,19 @@ async function main() {
     });
   });
 
+  // Prometheus scrape target. Plain text/openmetrics body; not behind the
+  // rate limit because Grafana Agent / k8s scrapers hit it every 15-30s.
+  app.get("/metrics", async (_req, res) => {
+    res.set("Content-Type", registry.contentType);
+    res.end(await registry.metrics());
+  });
+
   app.use("/api/audits", auditsRouter);
   // Swagger UI requires inline styles; relax CSP only on the /docs subtree.
   mountSwagger(app);
   app.use(errorHandler);
+
+  const queueDepthHandle = startQueueDepthSampler(auditQueue);
 
   const server = http.createServer(app);
   server.listen(env.PORT, () => logger.info({ port: env.PORT }, "api listening"));
@@ -136,6 +152,7 @@ async function main() {
     }, SHUTDOWN_TIMEOUT_MS);
     force.unref();
     try {
+      clearInterval(queueDepthHandle);
       await new Promise<void>((resolve, reject) =>
         server.close((err) => (err ? reject(err) : resolve()))
       );

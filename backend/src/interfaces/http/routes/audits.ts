@@ -4,6 +4,7 @@ import { z } from "zod";
 import { assertSafeUrl, UnsafeUrlError } from "@/application/assertSafeUrl";
 import { AuditModel } from "@/infrastructure/db/AuditModel";
 import { auditQueue, type AuditJobData } from "@/infrastructure/queue/auditQueue";
+import { auditsEnqueuedTotal } from "@/infrastructure/metrics/registry";
 import { AppError } from "../middlewares/errorHandler";
 import { requireClientId } from "../middlewares/clientId";
 
@@ -70,6 +71,7 @@ auditsRouter.post("/", requireClientId, async (req, res) => {
   const jobData: AuditJobData = { publicId, url: parsed.data.url };
   if (req.requestId !== undefined) jobData.requestId = req.requestId;
   await auditQueue.add("audit", jobData, { jobId: publicId });
+  auditsEnqueuedTotal.inc();
 
   res.status(202).json({ publicId, status: "queued" });
 });

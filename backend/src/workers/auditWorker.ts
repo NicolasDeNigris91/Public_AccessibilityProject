@@ -1,3 +1,4 @@
+import http from "node:http";
 import { Worker } from "bullmq";
 import mongoose from "mongoose";
 import puppeteer, { Browser } from "puppeteer";
@@ -11,6 +12,9 @@ import { AUDIT_QUEUE, AuditJobData } from "@/infrastructure/queue/auditQueue";
 import { assertSafeUrl } from "@/application/assertSafeUrl";
 import { classifySubrequest } from "@/application/subrequestPolicy";
 import { buildAuditResult, type AxeRawResult } from "@/domain/axeResult";
+import { puppeteerBrowserRelaunchTotal, registry } from "@/infrastructure/metrics/registry";
+import { startQueueDepthSampler } from "@/infrastructure/metrics/queueDepth";
+import { auditQueue } from "@/infrastructure/queue/auditQueue";
 import { processAuditJob } from "./dispatch";
 
 // Leave a few seconds for browser close + mongoose disconnect before SIGKILL.
@@ -20,6 +24,7 @@ let browser: Browser | null = null;
 
 async function getBrowser(): Promise<Browser> {
   if (browser && browser.connected) return browser;
+  if (browser !== null) puppeteerBrowserRelaunchTotal.inc();
   // exactOptionalPropertyTypes: omit executablePath when unset instead of
   // passing undefined. Puppeteer falls back to its bundled binary.
   const launchOpts: Parameters<typeof puppeteer.launch>[0] = {
@@ -86,6 +91,30 @@ async function main() {
   await connectMongo();
   logger.info("worker starting");
 
+  // Worker exposes /metrics on its own port so a sidecar / Grafana Agent can
+  // scrape it independently of the api. /healthz lets orchestrators know the
+  // worker process is alive even when no jobs are running.
+  const metricsServer = http.createServer((req, res) => {
+    if (req.url === "/metrics") {
+      void registry.metrics().then((body) => {
+        res.writeHead(200, { "Content-Type": registry.contentType });
+        res.end(body);
+      });
+      return;
+    }
+    if (req.url === "/healthz") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ status: "ok" }));
+      return;
+    }
+    res.writeHead(404);
+    res.end();
+  });
+  metricsServer.listen(env.WORKER_METRICS_PORT, () =>
+    logger.info({ port: env.WORKER_METRICS_PORT }, "worker metrics listening")
+  );
+  const queueDepthHandle = startQueueDepthSampler(auditQueue);
+
   const worker = new Worker<AuditJobData>(
     AUDIT_QUEUE,
     async (job) => {
@@ -110,6 +139,8 @@ async function main() {
     logger.info({ signal }, "worker shutting down");
     let exitCode = 0;
     try {
+      clearInterval(queueDepthHandle);
+      metricsServer.close();
       await drainWithTimeout(worker, SHUTDOWN_TIMEOUT_MS);
       if (browser)
         await browser.close().catch((err) => logger.warn({ err }, "browser close failed"));
