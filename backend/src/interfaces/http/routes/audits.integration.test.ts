@@ -22,6 +22,7 @@ jest.mock("@/application/assertSafeUrl", () => {
 import { AuditModel } from "@/infrastructure/db/AuditModel";
 import { auditsRouter } from "./audits";
 import { errorHandler } from "../middlewares/errorHandler";
+import { AuditAcceptedZ, AuditDetailZ, AuditListZ, ErrorEnvelopeZ } from "@/domain/contracts";
 
 const VALID_ID = "550e8400-e29b-41d4-a716-446655440000";
 const OTHER_ID = "11111111-1111-4111-8111-111111111111";
@@ -172,5 +173,65 @@ describe("GET /api/audits (integration)", () => {
     const res = await request(buildApp()).get("/api/audits").set("X-Client-Id", VALID_ID);
 
     expect(res.body).toHaveLength(50);
+  });
+});
+
+// Contract tests: every documented response shape must validate against the
+// Zod schemas in domain/contracts.ts. Schema drift breaks the build before
+// it reaches the frontend.
+describe("response contracts", () => {
+  it("POST /api/audits 202 matches AuditAccepted schema", async () => {
+    const res = await request(buildApp())
+      .post("/api/audits")
+      .set("X-Client-Id", VALID_ID)
+      .send({ url: "https://example.com" });
+    expect(res.status).toBe(202);
+    expect(() => AuditAcceptedZ.parse(res.body)).not.toThrow();
+  });
+
+  it("GET /api/audits/:publicId 200 matches AuditDetail schema (done audit)", async () => {
+    await AuditModel.create({
+      publicId: "contract-done",
+      clientId: VALID_ID,
+      url: "https://contract.example",
+      status: "done",
+      score: 88,
+      totals: { critical: 1, serious: 2, moderate: 0, minor: 3 },
+      violations: [
+        {
+          id: "color-contrast",
+          impact: "serious",
+          description: "x",
+          helpUrl: "https://example.com/h",
+          tags: ["wcag2aa"],
+          nodes: [{ target: ["button"], html: "<button/>" }],
+        },
+      ],
+      passes: 42,
+      durationMs: 1200,
+    });
+    const res = await request(buildApp()).get("/api/audits/contract-done");
+    expect(res.status).toBe(200);
+    expect(() => AuditDetailZ.parse(res.body)).not.toThrow();
+  });
+
+  it("GET /api/audits 200 matches AuditList schema", async () => {
+    await AuditModel.create([
+      { publicId: "x1", clientId: VALID_ID, url: "https://x1.example", status: "done" },
+      { publicId: "x2", clientId: VALID_ID, url: "https://x2.example", status: "queued" },
+    ]);
+    const res = await request(buildApp()).get("/api/audits").set("X-Client-Id", VALID_ID);
+    expect(res.status).toBe(200);
+    expect(() => AuditListZ.parse(res.body)).not.toThrow();
+  });
+
+  it("non-2xx responses match the ErrorEnvelope schema", async () => {
+    const missing = await request(buildApp()).get("/api/audits/no-such-id");
+    expect(missing.status).toBe(404);
+    expect(() => ErrorEnvelopeZ.parse(missing.body)).not.toThrow();
+
+    const noClient = await request(buildApp()).get("/api/audits");
+    expect(noClient.status).toBe(400);
+    expect(() => ErrorEnvelopeZ.parse(noClient.body)).not.toThrow();
   });
 });
