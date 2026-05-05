@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
-  "_comment": "Mutation testing on the pure domain layer. Score gate is a no-regression baseline; lift toward 85% as more domain logic is exercised by tests.",
+  "_comment": "Mutation testing on the domain, application and interfaces/http layers. Global break threshold stays at 70%; the 80% target on application/ is aspirational (Stryker only supports global thresholds).",
   "packageManager": "npm",
   "reporters": ["clear-text", "progress", "html"],
   "testRunner": "jest",
@@ -11,7 +11,19 @@
   "checkers": ["typescript"],
   "tsconfigFile": "tsconfig.json",
   "coverageAnalysis": "perTest",
-  "mutate": ["src/domain/scoring.ts", "src/domain/urlSafety.ts", "src/domain/axeResult.ts"],
+  "mutate": [
+    "src/domain/scoring.ts",
+    "src/domain/urlSafety.ts",
+    "src/domain/axeResult.ts",
+    "src/application/assertSafeUrl.ts",
+    "src/application/resolveSafeAddress.ts",
+    "src/application/subrequestPolicy.ts",
+    "src/interfaces/http/middlewares/clientId.ts",
+    "src/interfaces/http/middlewares/clientIdRateLimit.ts",
+    "src/interfaces/http/middlewares/errorHandler.ts",
+    "src/interfaces/http/middlewares/requestId.ts",
+    "src/interfaces/http/routes/audits.ts"
+  ],
   "thresholds": { "high": 85, "low": 70, "break": 70 },
   "timeoutMS": 60000,
   "concurrency": 2,

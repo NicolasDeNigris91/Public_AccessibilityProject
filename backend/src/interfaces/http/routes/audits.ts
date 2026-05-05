@@ -108,7 +108,12 @@ auditsRouter.post("/", requireClientId, submitRateLimit, async (req, res) => {
  *         $ref: '#/components/responses/ServerError'
  */
 auditsRouter.get("/:publicId", async (req, res) => {
-  const audit = await AuditModel.findOne({ publicId: req.params.publicId }).lean();
+  // Project the AuditDetail contract explicitly. Without this, Mongoose
+  // leaks _id, __v, clientId and updatedAt — the contracts.ts comment
+  // claimed these were filtered, but until this commit they were not.
+  const audit = await AuditModel.findOne({ publicId: req.params.publicId })
+    .select("publicId url status score totals violations passes durationMs error createdAt -_id")
+    .lean();
   if (!audit) throw new AppError(404, "not_found");
   res.json(audit);
 });
@@ -136,7 +141,10 @@ auditsRouter.get("/", requireClientId, async (req, res) => {
   const items = await AuditModel.find({ clientId: req.clientId })
     .sort({ createdAt: -1 })
     .limit(50)
-    .select("publicId url status score totals createdAt")
+    // Explicitly exclude Mongo internals so they cannot leak with the
+    // payload. The summary contract is publicId / url / status /
+    // score / totals / createdAt — nothing else.
+    .select("publicId url status score totals createdAt -_id")
     .lean();
   res.json(items);
 });

@@ -74,6 +74,22 @@ describe("assertSafeUrl", () => {
         )
       ).rejects.toMatchObject({ reason: "unsafe_target" });
     });
+
+    it("strips IPv6 brackets from the hostname before resolving", async () => {
+      // new URL("http://[::1]/").hostname returns "[::1]"; without the
+      // bracket-strip the resolver receives a hostname it cannot lookup.
+      // We assert that the stripped form (`::1`) reaches the resolver
+      // and the result is correctly classified as unsafe.
+      const seen: string[] = [];
+      const recordingResolver: DnsResolver = async (hostname) => {
+        seen.push(hostname);
+        return [{ address: "::1" }];
+      };
+      await expect(assertSafeUrl("http://[::1]/path", recordingResolver)).rejects.toMatchObject({
+        reason: "unsafe_target",
+      });
+      expect(seen).toEqual(["::1"]);
+    });
   });
 
   it("throws an UnsafeUrlError instance", async () => {

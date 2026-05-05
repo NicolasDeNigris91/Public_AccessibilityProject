@@ -177,10 +177,18 @@ describe("GET /api/audits", () => {
 });
 
 describe("GET /api/audits/:publicId", () => {
+  function findOneChain(value: unknown): { select: jest.Mock; lean: jest.Mock } {
+    const chain = {
+      select: jest.fn().mockReturnThis(),
+      lean: jest.fn().mockResolvedValue(value),
+    };
+    return chain;
+  }
+
   it("is public and works without X-Client-Id", async () => {
-    (AuditModel.findOne as jest.Mock).mockReturnValue({
-      lean: jest.fn().mockResolvedValue({ publicId: "abc", url: "https://x.com" }),
-    });
+    (AuditModel.findOne as jest.Mock).mockReturnValue(
+      findOneChain({ publicId: "abc", url: "https://x.com" })
+    );
 
     const res = await request(buildApp()).get("/api/audits/abc");
 
@@ -190,9 +198,7 @@ describe("GET /api/audits/:publicId", () => {
   });
 
   it("returns 404 when not found", async () => {
-    (AuditModel.findOne as jest.Mock).mockReturnValue({
-      lean: jest.fn().mockResolvedValue(null),
-    });
+    (AuditModel.findOne as jest.Mock).mockReturnValue(findOneChain(null));
 
     const res = await request(buildApp()).get("/api/audits/missing");
     expect(res.status).toBe(404);
