@@ -58,3 +58,10 @@ export const auditQueueDepth = new Gauge({
   labelNames: ["status"], // wait | active | delayed | failed
   registers: [registry],
 });
+
+export const auditDeadLetterTotal = new Counter({
+  name: "audit_dead_letter_total",
+  help: "Audit jobs that exhausted attempts and were moved to the dead-letter queue, by error category",
+  labelNames: ["reason"],
+  registers: [registry],
+});

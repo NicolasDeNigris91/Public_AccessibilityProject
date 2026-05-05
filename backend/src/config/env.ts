@@ -24,6 +24,13 @@ const schema = z.object({
     .enum(["true", "false"])
     .default("false")
     .transform((v: string) => v === "true"),
+  // Bull-Board admin UI is mounted at /admin/queues and protected by
+  // basic auth. Both vars are required to mount the route. If either
+  // is missing, the route is intentionally not exposed (the api still
+  // boots normally) so a misconfigured prod cannot accidentally serve
+  // the admin UI without credentials.
+  ADMIN_USER: z.string().min(1).optional(),
+  ADMIN_PASS: z.string().min(8).optional(),
 });
 
 const parsed = schema.safeParse(process.env);
