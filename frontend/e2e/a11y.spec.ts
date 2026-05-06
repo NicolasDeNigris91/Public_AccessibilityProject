@@ -5,8 +5,16 @@ import AxeBuilder from "@axe-core/playwright";
  * Self-a11y: the tool that audits other people's a11y must itself pass
  * axe. WCAG 2.2 AA is the declared target (see docs/QUALITY-AUDIT.md
  * Phase 3); for now we gate any new "serious" or "critical" violation.
+ *
+ * Soft-auth routes (`/entrar*`) are included so a regression in the
+ * sign-in surface — form labels, focus order, the post-submit
+ * "check your inbox" page, the cross-origin verify redirect — fails
+ * the build before it ships. /entrar/verify is rendered without a
+ * token so we exercise the placeholder copy path (Suspense boundary
+ * resolves to null when no token); a real token would trigger a
+ * cross-origin redirect that Playwright's webServer cannot follow.
  */
-const ROUTES = ["/", "/aprender", "/app"];
+const ROUTES = ["/", "/aprender", "/app", "/entrar", "/entrar/check", "/entrar/verify"];
 
 for (const path of ROUTES) {
   test(`route ${path} has no critical or serious axe violations`, async ({ page }) => {
