@@ -61,8 +61,12 @@ jobs:
       # not the build-time toolchain. CycloneDX format (CDX 1.6) is the
       # OWASP-recommended SBOM schema and is what most downstream
       # consumers (Trivy, Grype, Dependency-Track) parse.
+      # --ignore-scripts skips the root `prepare: husky` lifecycle (husky
+      # is a devDep, so it would fail under --omit=dev) and any postinstall
+      # in prod deps. SBOM accuracy is unaffected: anchore/sbom-action
+      # reads the dependency manifest, not the result of postinstall.
       - name: Install production deps
-        run: npm ci --omit=dev --workspaces --include-workspace-root
+        run: npm ci --omit=dev --ignore-scripts --workspaces --include-workspace-root
 
       - name: Generate CycloneDX SBOM
         uses: anchore/sbom-action@v0
