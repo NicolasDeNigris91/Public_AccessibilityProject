@@ -92,4 +92,86 @@ describe("verifyMagicLink", () => {
     const out = await verifyMagicLink({ rawToken: raw, sessionTtlMs: 60_000 });
     expect(out.clientId).toBeUndefined();
   });
+
+  describe("mutation hardening", () => {
+    let mlFindOneSpy: jest.SpyInstance;
+    let mlFoauSpy: jest.SpyInstance;
+    let userFoauSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      mlFindOneSpy = jest.spyOn(MagicLinkModel, "findOne");
+      mlFoauSpy = jest.spyOn(MagicLinkModel, "findOneAndUpdate");
+      userFoauSpy = jest.spyOn(UserModel, "findOneAndUpdate");
+    });
+
+    afterEach(() => {
+      mlFindOneSpy.mockRestore();
+      mlFoauSpy.mockRestore();
+      userFoauSpy.mockRestore();
+    });
+
+    it("scopes the initial link lookup by tokenHash exactly (filter not stripped)", async () => {
+      await seedLink("noise@b.com");
+      const { raw } = await seedLink("target@b.com");
+      await verifyMagicLink({ rawToken: raw, sessionTtlMs: 60_000 });
+      expect(mlFindOneSpy).toHaveBeenCalledWith({ tokenHash: hashToken(raw) });
+    });
+
+    it("treats link.expiresAt === Date.now() as still valid (strict <, not <=)", async () => {
+      const fixedNow = Date.now();
+      const dateNowSpy = jest.spyOn(Date, "now").mockReturnValue(fixedNow);
+      try {
+        const { raw } = await seedLink("bound@b.com", {
+          expiresAt: new Date(fixedNow),
+        });
+        const out = await verifyMagicLink({ rawToken: raw, sessionTtlMs: 60_000 });
+        expect(out.email).toBe("bound@b.com");
+      } finally {
+        dateNowSpy.mockRestore();
+      }
+    });
+
+    it("short-circuits when link.usedAt is already set (no atomic claim attempted)", async () => {
+      const { raw } = await seedLink("used@b.com", {
+        usedAt: new Date(Date.now() - 1000),
+      });
+      await expect(verifyMagicLink({ rawToken: raw, sessionTtlMs: 60_000 })).rejects.toThrow(
+        /already_used/
+      );
+      expect(mlFoauSpy).not.toHaveBeenCalled();
+    });
+
+    it("claims the link atomically with { tokenHash, usedAt: null } and { new: true }", async () => {
+      const { raw } = await seedLink("claim@b.com");
+      await verifyMagicLink({ rawToken: raw, sessionTtlMs: 60_000 });
+      expect(mlFoauSpy).toHaveBeenCalledWith(
+        { tokenHash: hashToken(raw), usedAt: null },
+        { $set: { usedAt: expect.any(Date) } },
+        { new: true }
+      );
+    });
+
+    it("throws already_used when the atomic claim returns null (concurrent verify race)", async () => {
+      const { raw } = await seedLink("race@b.com");
+      mlFoauSpy.mockResolvedValueOnce(null);
+      await expect(verifyMagicLink({ rawToken: raw, sessionTtlMs: 60_000 })).rejects.toThrow(
+        /already_used/
+      );
+    });
+
+    it("upserts the user with { email } filter and $setOnInsert: { email } (does not match unrelated users)", async () => {
+      const stranger = await UserModel.create({ email: "stranger@x.com" });
+      const { raw } = await seedLink("fresh@b.com");
+      const out = await verifyMagicLink({ rawToken: raw, sessionTtlMs: 60_000 });
+      expect(out.email).toBe("fresh@b.com");
+      expect(out.userId).not.toBe((stranger._id as { toString(): string }).toString());
+      expect(userFoauSpy).toHaveBeenCalledWith(
+        { email: "fresh@b.com" },
+        { $setOnInsert: { email: "fresh@b.com" } },
+        { upsert: true, new: true }
+      );
+      expect(await UserModel.countDocuments({ email: "stranger@x.com" })).toBe(1);
+      expect(await UserModel.countDocuments({ email: "fresh@b.com" })).toBe(1);
+    });
+  });
 });

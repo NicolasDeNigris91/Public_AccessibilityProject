@@ -42,7 +42,7 @@ describe("requestMagicLink", () => {
     expect(stored?.usedAt).toBeNull();
   });
 
-  it("normalises the email (trim + lowercase) before storing", async () => {
+  it("normalises the email (trim + lowercase) before storing and before sending", async () => {
     const sender = new FakeSender();
     await requestMagicLink({
       email: "  Mixed.Case@EXAMPLE.com  ",
@@ -52,6 +52,9 @@ describe("requestMagicLink", () => {
     });
     const stored = await MagicLinkModel.findOne({}).lean();
     expect(stored?.email).toBe("mixed.case@example.com");
+    // Sender path bypasses any schema-level coercion, so this directly
+    // exercises the trim().toLowerCase() in the source.
+    expect(sender.inbox[0]?.to).toBe("mixed.case@example.com");
   });
 
   it("propagates sender failures so the route can decide on the response", async () => {

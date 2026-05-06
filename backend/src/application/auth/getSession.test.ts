@@ -56,4 +56,44 @@ describe("getSession", () => {
     expect(await getSession(raw)).toBeNull();
     expect(await SessionModel.countDocuments()).toBe(0);
   });
+
+  describe("mutation hardening", () => {
+    it("returns the session whose tokenHash matches when multiple coexist", async () => {
+      const u = await UserModel.create({ email: "a@b.com" });
+      const other = await UserModel.create({ email: "x@y.com" });
+      const rawTarget = generateToken();
+      const rawOther = generateToken();
+      await SessionModel.create({
+        tokenHash: hashToken(rawOther),
+        userId: other._id,
+        expiresAt: new Date(Date.now() + 60_000),
+      });
+      await SessionModel.create({
+        tokenHash: hashToken(rawTarget),
+        userId: u._id,
+        expiresAt: new Date(Date.now() + 60_000),
+      });
+      const out = await getSession(rawTarget);
+      expect(out?.email).toBe("a@b.com");
+    });
+
+    it("treats expiresAt === Date.now() as still live (strict <, not <=)", async () => {
+      const fixedNow = Date.now();
+      const dateNowSpy = jest.spyOn(Date, "now").mockReturnValue(fixedNow);
+      try {
+        const u = await UserModel.create({ email: "boundary@b.com" });
+        const raw = generateToken();
+        await SessionModel.create({
+          tokenHash: hashToken(raw),
+          userId: u._id,
+          expiresAt: new Date(fixedNow),
+        });
+        const out = await getSession(raw);
+        expect(out).not.toBeNull();
+        expect(out?.email).toBe("boundary@b.com");
+      } finally {
+        dateNowSpy.mockRestore();
+      }
+    });
+  });
 });
