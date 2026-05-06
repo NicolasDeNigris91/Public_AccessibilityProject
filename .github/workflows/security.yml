@@ -81,3 +81,27 @@ jobs:
       # verifies" not "best effort".
       - name: Verify package signatures (full lockfile)
         run: npm audit signatures
+
+  dependency-review:
+    # Diff-scoped supply-chain gate: blocks a PR the moment it introduces
+    # a new dependency with a known high/critical advisory or a license
+    # outside the allowlist. Complements osv-scanner / npm-audit (which
+    # look at the lockfile state) by catching the *delta* before it lands,
+    # so a vulnerable package never reaches main even transiently.
+    name: Dependency review (PR diff)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: on-failure
+          # Permissive list — covers the OSI-compatible licenses we
+          # already depend on transitively. Tighten as we eliminate
+          # outliers (e.g. drop CC0-1.0 once nothing in the tree needs it).
+          allow-licenses: >-
+            MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD,
+            CC-BY-4.0, CC0-1.0, Unlicense, MPL-2.0, Python-2.0,
+            BlueOak-1.0.0, WTFPL
