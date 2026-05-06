@@ -7,14 +7,22 @@ describe("createEmailSender", () => {
     expect(createEmailSender({ NODE_ENV: "development" })).toBeInstanceOf(ConsoleSender);
   });
 
-  it("returns ResendSender when EMAIL_PROVIDER=resend and creds present", () => {
+  it("returns CircuitBreakerSender wrapping ResendSender when EMAIL_PROVIDER=resend and creds present", () => {
     const sender = createEmailSender({
       NODE_ENV: "production",
       EMAIL_PROVIDER: "resend",
       RESEND_API_KEY: "re_test",
       EMAIL_FROM: "Euthus <noreply@euthus.com>",
     });
-    expect(sender).toBeInstanceOf(ResendSender);
+    // The wrapper *is* an EmailSender; assert via the breaker class
+    // and via the inner reference so a future refactor that drops
+    // the wrapper fails this test loudly.
+    const { CircuitBreakerSender } =
+      jest.requireActual<typeof import("./CircuitBreakerSender")>("./CircuitBreakerSender");
+    expect(sender).toBeInstanceOf(CircuitBreakerSender);
+    // Inner is private but exposed via the class shape we control.
+    const inner = (sender as unknown as { inner: unknown }).inner;
+    expect(inner).toBeInstanceOf(ResendSender);
   });
 
   it("throws when EMAIL_PROVIDER=resend but RESEND_API_KEY is missing (boot fail)", () => {
