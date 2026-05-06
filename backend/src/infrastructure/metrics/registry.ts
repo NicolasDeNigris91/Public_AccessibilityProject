@@ -141,3 +141,17 @@ export const authAnonymousAuditsMovedTotal = new Counter({
   help: "Cumulative anonymous audits successfully attached to a user across verifies",
   registers: [registry],
 });
+
+/**
+ * Outbound email circuit breaker. The label set is the closed
+ * three-state machine (closed | half_open | open) plus a synthetic
+ * `rejected` event recorded every time a call is fast-failed during
+ * the cooldown — useful for distinguishing "provider was down" from
+ * "we're protecting it" in postmortems.
+ */
+export const authEmailCircuitBreakerEventsTotal = new Counter({
+  name: "auth_email_circuit_events_total",
+  help: "Outbound email circuit breaker events (transitions + rejected calls during cooldown)",
+  labelNames: ["event"], // closed | half_open | open | rejected
+  registers: [registry],
+});
