@@ -97,6 +97,33 @@ describe("authRouter", () => {
       expect(r.body.error.code).toBe("auth/email-not-configured");
       expect(r.body.error.hint).toMatch(/EMAIL_PROVIDER/);
     });
+
+    describe("Idempotency-Key", () => {
+      it("a duplicate POST with the same key does not send a second email", async () => {
+        const key = "11111111-2222-3333-4444-555555555555";
+        const r1 = await request(app)
+          .post("/api/auth/magic-link")
+          .set("Idempotency-Key", key)
+          .send({ email: "dup@b.com" });
+        const r2 = await request(app)
+          .post("/api/auth/magic-link")
+          .set("Idempotency-Key", key)
+          .send({ email: "dup@b.com" });
+        expect(r1.status).toBe(202);
+        expect(r2.status).toBe(202);
+        expect(sender.inbox).toHaveLength(1);
+      });
+
+      it("rejects malformed keys silently (treated as legacy / no-key request)", async () => {
+        // Length < 16 → header is dropped at the route, not surfaced as 400.
+        const r = await request(app)
+          .post("/api/auth/magic-link")
+          .set("Idempotency-Key", "short")
+          .send({ email: "a@b.com" });
+        expect(r.status).toBe(202);
+        expect(sender.inbox).toHaveLength(1);
+      });
+    });
   });
 
   describe("GET /api/auth/verify", () => {

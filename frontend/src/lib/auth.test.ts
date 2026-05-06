@@ -63,6 +63,31 @@ describe("auth client", () => {
       });
       await expect(requestMagicLink("a@b.com")).rejects.toThrow(/http_502/);
     });
+
+    it("sends a fresh Idempotency-Key per call so backend can dedupe network retries", async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({ ok: true, status: 202 });
+      await requestMagicLink("a@b.com");
+      const headers = ((global.fetch as jest.Mock).mock.calls[0]?.[1]?.headers ?? {}) as Record<
+        string,
+        string
+      >;
+      expect(headers["Idempotency-Key"]).toMatch(/^[A-Za-z0-9_-]{16,}$/);
+    });
+
+    it("emits a different Idempotency-Key on each call (fresh per submit)", async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({ ok: true, status: 202 });
+      await requestMagicLink("a@b.com");
+      await requestMagicLink("a@b.com");
+      const k1 = (
+        (global.fetch as jest.Mock).mock.calls[0]?.[1]?.headers as Record<string, string>
+      )?.["Idempotency-Key"];
+      const k2 = (
+        (global.fetch as jest.Mock).mock.calls[1]?.[1]?.headers as Record<string, string>
+      )?.["Idempotency-Key"];
+      expect(k1).toBeTruthy();
+      expect(k2).toBeTruthy();
+      expect(k1).not.toBe(k2);
+    });
   });
 
   describe("fetchSession", () => {
