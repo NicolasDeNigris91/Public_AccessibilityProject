@@ -1,4 +1,5 @@
 import { Router } from "express";
+import mongoose from "mongoose";
 import { v4 as uuid } from "uuid";
 import { z } from "zod";
 import { assertSafeUrl, UnsafeUrlError } from "@/application/assertSafeUrl";
@@ -10,6 +11,8 @@ import { captureTraceparent, withSpan } from "@/infrastructure/telemetry/spans";
 import { AppError } from "../middlewares/errorHandler";
 import { requireClientId } from "../middlewares/clientId";
 import { clientIdRateLimit } from "../middlewares/clientIdRateLimit";
+
+const ClientIdSchema = z.string().uuid();
 
 // Per-clientId cap: 30 submissions / hour. The IP-level cap (set in
 // server.ts) still applies. Tightens the cap that previously trusted IP
@@ -77,12 +80,17 @@ auditsRouter.post("/", requireClientId, submitRateLimit, async (req, res) => {
     "audit.enqueue",
     { "audit.public_id": publicId, "audit.url_host": new URL(parsed.data.url).hostname },
     async () => {
-      await AuditModel.create({
+      // Always record clientId (carries forward the anonymous trail so
+      // future verifies can merge it). Attach userId too when a session
+      // resolved upstream — that is the canonical owner from then on.
+      const auditDoc: Record<string, unknown> = {
         publicId,
         clientId: req.clientId,
         url: parsed.data.url,
         status: "queued",
-      });
+      };
+      if (req.userId) auditDoc.userId = new mongoose.Types.ObjectId(req.userId);
+      await AuditModel.create(auditDoc);
       // exactOptionalPropertyTypes forbids passing `requestId: undefined`
       // against an optional field, so build the payload conditionally.
       const jobData: AuditJobData = { publicId, url: parsed.data.url };
@@ -150,8 +158,20 @@ auditsRouter.get("/:publicId", async (req, res) => {
  *       500:
  *         $ref: '#/components/responses/ServerError'
  */
-auditsRouter.get("/", requireClientId, async (req, res) => {
-  const items = await AuditModel.find({ clientId: req.clientId })
+auditsRouter.get("/", async (req, res) => {
+  // Soft-auth scope: a resolved session beats the anonymous client id, so
+  // a signed-in caller sees their account's audits regardless of which
+  // browser/device they're on. With no session we keep the legacy contract
+  // and 400 on a missing/invalid X-Client-Id header.
+  let filter: { userId: mongoose.Types.ObjectId } | { clientId: string };
+  if (req.userId) {
+    filter = { userId: new mongoose.Types.ObjectId(req.userId) };
+  } else {
+    const parsed = ClientIdSchema.safeParse(req.header("X-Client-Id"));
+    if (!parsed.success) throw new AppError(400, "invalid_client_id");
+    filter = { clientId: parsed.data };
+  }
+  const items = await AuditModel.find(filter)
     .sort({ createdAt: -1 })
     .limit(50)
     // Explicitly exclude Mongo internals so they cannot leak with the

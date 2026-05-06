@@ -3,6 +3,7 @@ import { Logo } from "@/components/ui/Logo";
 import { Container } from "@/components/ui/Container";
 import { ThemeToggle } from "@/components/shell/ThemeToggle";
 import { ColorBlindToggle } from "@/components/shell/ColorBlindToggle";
+import { SessionPill } from "@/components/shell/SessionPill";
 import { copy } from "@/lib/copy";
 
 const navLinks = [
@@ -40,6 +41,7 @@ export function Header() {
         <div className="flex items-center gap-1">
           <ColorBlindToggle />
           <ThemeToggle />
+          <SessionPill />
         </div>
       </Container>
     </header>

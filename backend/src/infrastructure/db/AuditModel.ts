@@ -21,6 +21,7 @@ const AuditSchema = new Schema(
   {
     publicId: { type: String, unique: true, required: true },
     clientId: { type: String },
+    userId: { type: Schema.Types.ObjectId, ref: "User" },
     url: { type: String, required: true },
     status: { type: String, enum: ["queued", "running", "done", "failed"], default: "queued" },
     score: Number,
@@ -40,6 +41,10 @@ const AuditSchema = new Schema(
 
 // Serves GET /api/audits: find by clientId, sort by createdAt desc, limit 50.
 AuditSchema.index({ clientId: 1, createdAt: -1 });
+// Same shape, but for users who have signed in. The list endpoint
+// switches between these two indexes based on whether a session
+// cookie was resolved by `optionalSession`.
+AuditSchema.index({ userId: 1, createdAt: -1 });
 
 export type AuditDoc = InferSchemaType<typeof AuditSchema> & { _id: unknown };
 export const AuditModel = model("Audit", AuditSchema);

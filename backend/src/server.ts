@@ -8,6 +8,7 @@ import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import pinoHttp from "pino-http";
+import cookieParser from "cookie-parser";
 import mongoose from "mongoose";
 import { env } from "@/config/env";
 import { logger } from "@/config/logger";
@@ -17,15 +18,21 @@ import { redisConnection } from "@/infrastructure/queue/connection";
 import { auditsRouter } from "@/interfaces/http/routes/audits";
 import { rumRouter } from "@/interfaces/http/routes/rum";
 import { auditEventsRouter } from "@/interfaces/http/routes/auditEvents";
+import { buildAuthRouter } from "@/interfaces/http/routes/auth";
 import * as auditEventsBus from "@/infrastructure/queue/auditEventsBus";
 import { errorHandler } from "@/interfaces/http/middlewares/errorHandler";
 import { requestId } from "@/interfaces/http/middlewares/requestId";
+import { optionalSession } from "@/interfaces/http/middlewares/optionalSession";
+import { ipEmailRateLimit } from "@/interfaces/http/middlewares/ipEmailRateLimit";
 import { mountSwagger } from "@/interfaces/http/swagger";
 import { mountQueuesUI } from "@/interfaces/http/admin/queuesUI";
 import { auditQueue } from "@/infrastructure/queue/auditQueue";
 import { httpMetricsMiddleware } from "@/infrastructure/metrics/httpMetrics";
 import { registry } from "@/infrastructure/metrics/registry";
 import { startQueueDepthSampler } from "@/infrastructure/metrics/queueDepth";
+import { createEmailSender } from "@/infrastructure/email/factory";
+import { LastLinkCapture } from "@/infrastructure/email/lastLinkCapture";
+import type { EmailSender } from "@/infrastructure/email/EmailSender";
 
 // Time the API has to drain in-flight requests on SIGTERM before the
 // orchestrator sends SIGKILL. Match Railway's grace window (~30s).
@@ -70,6 +77,7 @@ async function main() {
     })
   );
   app.use(express.json({ limit: "32kb" }));
+  app.use(cookieParser());
   app.use(requestId);
   // Record duration before any route runs so even rate-limited requests are
   // observed.
@@ -87,6 +95,47 @@ async function main() {
       max: env.RATE_LIMIT_MAX,
       standardHeaders: true,
       legacyHeaders: false,
+    })
+  );
+
+  // Resolves the session cookie into req.userId / req.userEmail when present.
+  // Mounted globally so routes downstream (auth + audits) can read it without
+  // remounting per-route.
+  app.use(optionalSession);
+
+  // Soft-auth wiring. createEmailSender returns null in production when
+  // EMAIL_PROVIDER is unset; the route 503s loudly so misconfig never
+  // silently degrades to a console log of magic-links. Outside production
+  // we wrap whatever sender came back with LastLinkCapture so the e2e
+  // hatch can read the last link per email — never wired in prod.
+  const baseSender: EmailSender | null = createEmailSender({
+    NODE_ENV: env.NODE_ENV,
+    ...(env.EMAIL_PROVIDER !== undefined ? { EMAIL_PROVIDER: env.EMAIL_PROVIDER } : {}),
+    ...(env.RESEND_API_KEY !== undefined ? { RESEND_API_KEY: env.RESEND_API_KEY } : {}),
+    ...(env.EMAIL_FROM !== undefined ? { EMAIL_FROM: env.EMAIL_FROM } : {}),
+  });
+  const isProd = env.NODE_ENV === "production";
+  const linkCapture = !isProd && baseSender ? new LastLinkCapture(baseSender) : null;
+  const authSender: EmailSender | null = linkCapture ?? baseSender;
+
+  app.use(
+    "/api/auth",
+    buildAuthRouter({
+      sender: authSender,
+      webBaseUrl: env.WEB_BASE_URL,
+      appRedirectUrl: env.APP_REDIRECT_URL,
+      cookieSecure: isProd,
+      cookieMaxAgeSec: Math.floor(env.SESSION_TTL_MS / 1000),
+      ...(env.AUTH_COOKIE_DOMAIN ? { cookieDomain: env.AUTH_COOKIE_DOMAIN } : {}),
+      magicLinkTtlMs: env.MAGIC_LINK_TTL_MS,
+      sessionTtlMs: env.SESSION_TTL_MS,
+      magicLinkRateLimiter: ipEmailRateLimit({
+        redis: redisConnection,
+        max: env.AUTH_RATE_LIMIT_MAX,
+        windowMs: env.AUTH_RATE_LIMIT_WINDOW_MS,
+        keyPrefix: "rl:auth:magic-link",
+      }),
+      ...(linkCapture ? { lastLinkLookup: (e: string) => linkCapture.lookup(e) } : {}),
     })
   );
 

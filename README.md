@@ -33,7 +33,7 @@ docker compose up --build
 - Swagger: <http://localhost:4000/docs>
 - Health: <http://localhost:4000/health>
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the system design and [docs/ROADMAP.md](docs/ROADMAP.md) for the incremental build plan.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the system design, [docs/ROADMAP.md](docs/ROADMAP.md) for the incremental build plan, and [docs/auth.md](docs/auth.md) for the optional magic-link sign-in (routes, env, dev/prod flow).
 
 ## Stack
 
