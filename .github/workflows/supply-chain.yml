@@ -19,6 +19,16 @@ on:
   push:
     tags:
       - "v*"
+  # Manual re-attestation. Useful when a tag was pushed in a batch that
+  # the push event collapsed, or to backfill SBOM + provenance for an
+  # older release. The workflow checks out the tag's commit so the SBOM
+  # reflects the lockfile shipped at that tag, not the current main.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to attest (e.g. v1.0.0)"
+        required: true
+        type: string
 
 permissions:
   contents: write # upload assets to the release
@@ -36,6 +46,11 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          # On push.tags this is the tag ref already; on workflow_dispatch
+          # we explicitly check out the requested tag so the SBOM matches
+          # what was shipped, not whatever main is at right now.
+          ref: ${{ inputs.tag || github.ref }}
 
       - uses: actions/setup-node@v4
         with:
@@ -75,7 +90,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload "${GITHUB_REF_NAME}" sbom.cdx.json --clobber
+          TAG="${{ inputs.tag || github.ref_name }}"
+          gh release upload "${TAG}" sbom.cdx.json --clobber
 
       # Provenance attestation for the source tree at the tagged commit.
       # Distinct from the SBOM attestation: provenance answers "who
