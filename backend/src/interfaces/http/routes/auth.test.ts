@@ -148,6 +148,50 @@ describe("authRouter", () => {
       const skipped = await AuditModel.findOne({ publicId: "p2" }).lean();
       expect(skipped?.userId).toBeFalsy();
     });
+
+    it("merges anonymous audits via the clientId stored at POST time, even when /verify carries no header (real browser email-link flow)", async () => {
+      await AuditModel.create({ publicId: "p1", url: "https://x", clientId: "cid-from-post" });
+      await AuditModel.create({ publicId: "p2", url: "https://y", clientId: "cid-other" });
+      await request(app)
+        .post("/api/auth/magic-link")
+        .set("X-Client-Id", "cid-from-post")
+        .send({ email: "a@b.com" });
+      const token = new URL(sender.inbox[0]?.link ?? "").searchParams.get("token") ?? "";
+      const r = await request(app).get(`/api/auth/verify?token=${token}`); // NO header — real flow
+      expect(r.status).toBe(302);
+      const matched = await AuditModel.findOne({ publicId: "p1" }).lean();
+      expect(matched?.userId).toBeTruthy();
+      const skipped = await AuditModel.findOne({ publicId: "p2" }).lean();
+      expect(skipped?.userId).toBeFalsy();
+    });
+
+    it("prefers the link's stored clientId when both POST and /verify carry headers", async () => {
+      await AuditModel.create({ publicId: "p1", url: "https://x", clientId: "cid-from-post" });
+      await AuditModel.create({ publicId: "p2", url: "https://y", clientId: "cid-from-verify" });
+      await request(app)
+        .post("/api/auth/magic-link")
+        .set("X-Client-Id", "cid-from-post")
+        .send({ email: "a@b.com" });
+      const token = new URL(sender.inbox[0]?.link ?? "").searchParams.get("token") ?? "";
+      const r = await request(app)
+        .get(`/api/auth/verify?token=${token}`)
+        .set("X-Client-Id", "cid-from-verify");
+      expect(r.status).toBe(302);
+      const fromPost = await AuditModel.findOne({ publicId: "p1" }).lean();
+      expect(fromPost?.userId).toBeTruthy();
+      const fromVerify = await AuditModel.findOne({ publicId: "p2" }).lean();
+      expect(fromVerify?.userId).toBeFalsy();
+    });
+
+    it("does not call merge when neither POST nor /verify provided a clientId", async () => {
+      await AuditModel.create({ publicId: "p1", url: "https://x", clientId: "cid-orphan" });
+      await request(app).post("/api/auth/magic-link").send({ email: "a@b.com" });
+      const token = new URL(sender.inbox[0]?.link ?? "").searchParams.get("token") ?? "";
+      const r = await request(app).get(`/api/auth/verify?token=${token}`);
+      expect(r.status).toBe(302);
+      const orphan = await AuditModel.findOne({ publicId: "p1" }).lean();
+      expect(orphan?.userId).toBeFalsy();
+    });
   });
 
   describe("GET /api/auth/me", () => {

@@ -11,8 +11,12 @@ Phase 5.3 — Soft auth via magic link.
 - Anonymous flow (`X-Client-Id`) preserved unchanged. Audits scope by
   `userId` when the session cookie resolves and by `clientId` otherwise;
   POSTs from a signed-in caller record both so `mergeAnonymousAudits`
-  can attach prior anonymous audits on first verify when an
-  `X-Client-Id` accompanies the request.
+  can attach prior anonymous audits on first verify. The `clientId` is
+  captured at `POST /magic-link` time (which carries `X-Client-Id` via
+  `apiFetch`) and stored on the link, so the merge survives the
+  email-link click — browsers do not propagate custom headers across
+  email-driven navigation. The `/verify` header is kept as a defensive
+  fallback for legacy in-flight links and non-browser callers.
 - Email is sent via an `EmailSender` abstraction. Dev defaults to a
   console sender (link printed to logs as `magic link issued`). Prod
   requires `EMAIL_PROVIDER=resend` plus `RESEND_API_KEY` and `EMAIL_FROM`,

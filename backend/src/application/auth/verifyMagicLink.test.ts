@@ -27,13 +27,17 @@ describe("verifyMagicLink", () => {
     ]);
   });
 
-  async function seedLink(email: string, opts: Partial<{ expiresAt: Date; usedAt: Date }> = {}) {
+  async function seedLink(
+    email: string,
+    opts: Partial<{ expiresAt: Date; usedAt: Date; clientId: string }> = {}
+  ) {
     const raw = generateToken();
     const ml = await MagicLinkModel.create({
       tokenHash: hashToken(raw),
       email,
       expiresAt: opts.expiresAt ?? new Date(Date.now() + 60_000),
       usedAt: opts.usedAt ?? null,
+      ...(opts.clientId ? { clientId: opts.clientId } : {}),
     });
     return { raw, ml };
   }
@@ -75,5 +79,17 @@ describe("verifyMagicLink", () => {
     await expect(verifyMagicLink({ rawToken: raw, sessionTtlMs: 60_000 })).rejects.toThrow(
       /already_used/
     );
+  });
+
+  it("returns the clientId stored on the link so the router can merge anonymous audits without a header", async () => {
+    const { raw } = await seedLink("a@b.com", { clientId: "cid-stored" });
+    const out = await verifyMagicLink({ rawToken: raw, sessionTtlMs: 60_000 });
+    expect(out.clientId).toBe("cid-stored");
+  });
+
+  it("returns clientId undefined when the link has none (legacy / non-browser POST)", async () => {
+    const { raw } = await seedLink("a@b.com");
+    const out = await verifyMagicLink({ rawToken: raw, sessionTtlMs: 60_000 });
+    expect(out.clientId).toBeUndefined();
   });
 });

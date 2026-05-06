@@ -86,8 +86,25 @@ links into a public log destination.
 audit list endpoint switches between `userId` (when the session cookie
 resolved) and `clientId` (otherwise). Audits POSTed while signed in
 record both, so the `mergeAnonymousAudits` use case can attach prior
-anonymous audits to the user account on first verify when an
-`X-Client-Id` accompanies the verify request.
+anonymous audits to the user account on first verify.
+
+### How the merge survives the email-link click
+
+Browsers do not propagate custom headers across email-driven
+navigation, so `X-Client-Id` is **not** present when the user clicks
+the link in their inbox and lands on `/verify`. To make the merge
+work in the real flow, `POST /magic-link` (which **does** carry
+`X-Client-Id` via `apiFetch`) stores it on the `MagicLinkModel` row.
+On `GET /verify`, the link's stored `clientId` drives the merge; the
+header is kept as a defensive fallback for in-flight links issued
+before this field existed and for non-browser callers (curl, API
+clients) that may want to opt in to the merge by sending the header
+explicitly on `/verify`.
+
+The link's stored `clientId` wins when both are present, since it
+reflects the browser the user was on when they had anonymous audits
+sitting locally — even if they end up clicking the link from a
+different browser (e.g. mobile inbox).
 
 ## Failure modes worth knowing
 

@@ -45,4 +45,25 @@ describe("MagicLinkModel", () => {
     const tk = indexes.find((i) => i.key?.tokenHash === 1);
     expect(tk?.unique).toBe(true);
   });
+
+  it("persists clientId when provided (so /verify can merge anonymous audits without a request-time header)", async () => {
+    const ml = await MagicLinkModel.create({
+      tokenHash: "h",
+      email: "a@b.com",
+      clientId: "cid-42",
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    expect(ml.clientId).toBe("cid-42");
+    const reread = await MagicLinkModel.findById(ml._id).lean();
+    expect(reread?.clientId).toBe("cid-42");
+  });
+
+  it("leaves clientId absent when not provided (legacy POST without X-Client-Id)", async () => {
+    const ml = await MagicLinkModel.create({
+      tokenHash: "h2",
+      email: "a@b.com",
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    expect(ml.clientId == null).toBe(true);
+  });
 });

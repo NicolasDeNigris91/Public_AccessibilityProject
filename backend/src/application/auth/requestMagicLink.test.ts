@@ -67,4 +67,29 @@ describe("requestMagicLink", () => {
       })
     ).rejects.toThrow("smtp down");
   });
+
+  it("persists clientId on the link when provided so /verify can merge anonymous audits", async () => {
+    const sender = new FakeSender();
+    await requestMagicLink({
+      email: "a@b.com",
+      sender,
+      webBaseUrl: "https://api.test",
+      ttlMs: 60_000,
+      clientId: "cid-from-frontend",
+    });
+    const stored = await MagicLinkModel.findOne({}).lean();
+    expect(stored?.clientId).toBe("cid-from-frontend");
+  });
+
+  it("leaves clientId absent on the link when not provided (server-side or curl POSTs)", async () => {
+    const sender = new FakeSender();
+    await requestMagicLink({
+      email: "a@b.com",
+      sender,
+      webBaseUrl: "https://api.test",
+      ttlMs: 60_000,
+    });
+    const stored = await MagicLinkModel.findOne({}).lean();
+    expect(stored?.clientId == null).toBe(true);
+  });
 });

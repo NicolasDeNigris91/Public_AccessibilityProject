@@ -4,6 +4,7 @@ const MagicLinkSchema = new Schema(
   {
     tokenHash: { type: String, required: true, unique: true },
     email: { type: String, required: true, lowercase: true, trim: true },
+    clientId: { type: String },
     expiresAt: { type: Date, required: true },
     usedAt: { type: Date, default: null },
   },

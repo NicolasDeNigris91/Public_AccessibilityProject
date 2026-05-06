@@ -54,11 +54,13 @@ export function buildAuthRouter(deps: AuthRouterDeps): Router {
     }
     const parsed = EmailBody.safeParse(req.body);
     if (!parsed.success) throw new AppError(400, "invalid_email");
+    const postClientId = req.header("X-Client-Id");
     await requestMagicLink({
       email: parsed.data.email,
       sender: deps.sender,
       webBaseUrl: deps.webBaseUrl,
       ttlMs: deps.magicLinkTtlMs,
+      ...(postClientId ? { clientId: postClientId } : {}),
     });
     res.status(202).end();
   });
@@ -74,10 +76,12 @@ export function buildAuthRouter(deps: AuthRouterDeps): Router {
       throw err;
     }
 
-    const clientId = req.header("X-Client-Id");
-    if (clientId) {
+    // Link's stored clientId (captured at POST time) wins; header is the
+    // legacy fallback for links issued before the field existed.
+    const mergeClientId = out.clientId ?? req.header("X-Client-Id");
+    if (mergeClientId) {
       await mergeAnonymousAudits({
-        clientId,
+        clientId: mergeClientId,
         userId: new mongoose.Types.ObjectId(out.userId),
       });
     }

@@ -18,6 +18,13 @@ interface Out {
   userId: string;
   rawSessionToken: string;
   email: string;
+  /**
+   * `clientId` captured at request time (POST /magic-link), if any. The
+   * router uses it to call `mergeAnonymousAudits` without depending on a
+   * `X-Client-Id` header on the email-link click, which browsers do not
+   * propagate on plain navigation.
+   */
+  clientId?: string;
 }
 
 /**
@@ -56,5 +63,6 @@ export async function verifyMagicLink(args: Args): Promise<Out> {
     userId: (user._id as { toString(): string }).toString(),
     rawSessionToken,
     email: link.email,
+    ...(link.clientId ? { clientId: link.clientId } : {}),
   };
 }
