@@ -18,7 +18,9 @@ queries:
   - uses: security-and-quality
   - uses: security-extended
   # Project-specific custom queries — see queries/ folder.
-  - uses: ./queries/dns-outside-ssrf-boundary.ql
+  # Path is resolved relative to the repo root (not this config file),
+  # so the full path under .github/ is required.
+  - uses: ./.github/codeql/queries/dns-outside-ssrf-boundary.ql
 
 paths:
   - backend/src
