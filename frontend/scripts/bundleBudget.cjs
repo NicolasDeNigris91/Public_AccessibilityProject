@@ -23,6 +23,9 @@ const ROUTE_BUDGET_KB = {
   "/aprender": 120,
   "/app": 160,
   "/audits/[id]": 160,
+  "/entrar": 130,
+  "/entrar/check": 130,
+  "/entrar/verify": 130,
 };
 
 function gzippedSizeBytes(absPath) {
