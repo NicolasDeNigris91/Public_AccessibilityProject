@@ -30,4 +30,32 @@ describe("auth/cookies", () => {
     expect(c).toContain(`${SESSION_COOKIE_NAME}=;`);
     expect(c).toContain("Max-Age=0");
   });
+
+  describe("mutation hardening", () => {
+    it("uses the literal cookie name 'euthus_session'", () => {
+      expect(SESSION_COOKIE_NAME).toBe("euthus_session");
+      const c = serializeSessionCookie("t", { secure: false, maxAgeSec: 60 });
+      expect(c.startsWith("euthus_session=t;")).toBe(true);
+    });
+
+    it("filters undefined parts so optional attributes never produce empty segments", () => {
+      const c = serializeSessionCookie("t", { secure: false, maxAgeSec: 60 });
+      expect(c).not.toMatch(/;\s*;/);
+      expect(c).not.toMatch(/;\s*$/);
+      expect(c.endsWith("Max-Age=60")).toBe(true);
+    });
+
+    it("clearSessionCookie carries HttpOnly + SameSite=Lax + Path=/ + Secure", () => {
+      const c = clearSessionCookie({ secure: true });
+      expect(c).toContain("HttpOnly");
+      expect(c).toContain("SameSite=Lax");
+      expect(c).toContain("Path=/");
+      expect(c).toContain("Secure");
+    });
+
+    it("clearSessionCookie omits Secure when secure=false", () => {
+      const c = clearSessionCookie({ secure: false });
+      expect(c).not.toContain("Secure");
+    });
+  });
 });
