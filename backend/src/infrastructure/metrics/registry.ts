@@ -122,3 +122,22 @@ export const webVitalRejectedTotal = new Counter({
   labelNames: ["reason"], // shape | route | name | value
   registers: [registry],
 });
+
+/**
+ * Soft-auth: anonymous → user audit migration on magic-link verify.
+ * Outcome label is bounded to the three known states. clientId and
+ * userId are deliberately NOT labels — they go in structured logs
+ * where high cardinality is fine, never as Prometheus series.
+ */
+export const authAnonymousAuditsMergeTotal = new Counter({
+  name: "auth_anonymous_audits_merge_total",
+  help: "Anonymous to user audit merge attempts on magic-link verify, by outcome",
+  labelNames: ["outcome"], // merged | no_match | skipped
+  registers: [registry],
+});
+
+export const authAnonymousAuditsMovedTotal = new Counter({
+  name: "auth_anonymous_audits_moved_total",
+  help: "Cumulative anonymous audits successfully attached to a user across verifies",
+  registers: [registry],
+});
