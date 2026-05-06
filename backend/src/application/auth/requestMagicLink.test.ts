@@ -95,4 +95,93 @@ describe("requestMagicLink", () => {
     const stored = await MagicLinkModel.findOne({}).lean();
     expect(stored?.clientId == null).toBe(true);
   });
+
+  describe("idempotency", () => {
+    it("short-circuits a duplicate (email, idempotencyKey) inside the TTL: no second link, no second email", async () => {
+      const sender = new FakeSender();
+      const args = {
+        email: "dup@b.com",
+        sender,
+        webBaseUrl: "https://api.test",
+        ttlMs: 60_000,
+        idempotencyKey: "11111111-2222-3333-4444-555555555555",
+      };
+      await requestMagicLink(args);
+      await requestMagicLink(args);
+      expect(sender.inbox).toHaveLength(1);
+      expect(await MagicLinkModel.countDocuments({})).toBe(1);
+    });
+
+    it("treats different (email, idempotencyKey) pairs as distinct sends", async () => {
+      const sender = new FakeSender();
+      await requestMagicLink({
+        email: "a@b.com",
+        sender,
+        webBaseUrl: "https://api.test",
+        ttlMs: 60_000,
+        idempotencyKey: "key-A-aaaaaaaaaaaaaa",
+      });
+      await requestMagicLink({
+        email: "a@b.com",
+        sender,
+        webBaseUrl: "https://api.test",
+        ttlMs: 60_000,
+        idempotencyKey: "key-B-bbbbbbbbbbbbbb",
+      });
+      expect(sender.inbox).toHaveLength(2);
+      expect(await MagicLinkModel.countDocuments({})).toBe(2);
+    });
+
+    it("scopes idempotency by email so the same key for two different mailboxes is not deduped", async () => {
+      const sender = new FakeSender();
+      const sharedKey = "shared-key-aaaaaaa";
+      await requestMagicLink({
+        email: "alice@b.com",
+        sender,
+        webBaseUrl: "https://api.test",
+        ttlMs: 60_000,
+        idempotencyKey: sharedKey,
+      });
+      await requestMagicLink({
+        email: "bob@b.com",
+        sender,
+        webBaseUrl: "https://api.test",
+        ttlMs: 60_000,
+        idempotencyKey: sharedKey,
+      });
+      expect(sender.inbox).toHaveLength(2);
+    });
+
+    it("re-runs the full flow once the prior link has expired, even with the same key", async () => {
+      const sender = new FakeSender();
+      const args = {
+        email: "expired@b.com",
+        sender,
+        webBaseUrl: "https://api.test",
+        ttlMs: 60_000,
+        idempotencyKey: "key-expired-aaaaaaa",
+      };
+      await requestMagicLink(args);
+      await MagicLinkModel.updateMany({}, { $set: { expiresAt: new Date(Date.now() - 1000) } });
+      await requestMagicLink(args);
+      expect(sender.inbox).toHaveLength(2);
+    });
+
+    it("falls back to non-idempotent behavior when the header is absent (legacy clients)", async () => {
+      const sender = new FakeSender();
+      await requestMagicLink({
+        email: "legacy@b.com",
+        sender,
+        webBaseUrl: "https://api.test",
+        ttlMs: 60_000,
+      });
+      await requestMagicLink({
+        email: "legacy@b.com",
+        sender,
+        webBaseUrl: "https://api.test",
+        ttlMs: 60_000,
+      });
+      expect(sender.inbox).toHaveLength(2);
+    });
+  });
 });

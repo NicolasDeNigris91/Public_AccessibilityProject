@@ -26,10 +26,21 @@ async function readError(res: Response): Promise<string> {
 }
 
 export async function requestMagicLink(email: string): Promise<void> {
+  // A fresh idempotency key per call. The server dedupes a same-key
+  // retry inside the link's TTL (15 min) so an accidental double-submit
+  // or transparent network retry doesn't burn a second email; distinct
+  // user actions get distinct keys, which is what we want.
+  const idempotencyKey =
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 18)}`;
   const res = await fetch(`${API}/api/auth/magic-link`, {
     method: "POST",
     credentials: "include",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "Idempotency-Key": idempotencyKey,
+    },
     body: JSON.stringify({ email }),
   });
   if (res.ok) return;
