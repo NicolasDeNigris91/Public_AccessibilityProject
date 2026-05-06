@@ -1,9 +1,33 @@
 import type { Types } from "mongoose";
 import { AuditModel } from "@/infrastructure/db/AuditModel";
+import { logger } from "@/config/logger";
+import {
+  authAnonymousAuditsMergeTotal,
+  authAnonymousAuditsMovedTotal,
+} from "@/infrastructure/metrics/registry";
 
 interface Args {
   clientId: string;
   userId: Types.ObjectId;
+}
+
+type Outcome = "merged" | "no_match" | "skipped";
+
+function emit(args: Args, modifiedCount: number, outcome: Outcome): void {
+  authAnonymousAuditsMergeTotal.inc({ outcome });
+  if (modifiedCount > 0) {
+    authAnonymousAuditsMovedTotal.inc(modifiedCount);
+  }
+  logger.info(
+    {
+      event: "auth.merge_anonymous_audits",
+      userId: args.userId.toString(),
+      clientId: args.clientId,
+      modifiedCount,
+      outcome,
+    },
+    "merge_anonymous_audits"
+  );
 }
 
 /**
@@ -13,10 +37,15 @@ interface Args {
  * number of audits moved.
  */
 export async function mergeAnonymousAudits(args: Args): Promise<number> {
-  if (!args.clientId) return 0;
+  if (!args.clientId) {
+    emit(args, 0, "skipped");
+    return 0;
+  }
   const result = await AuditModel.updateMany(
     { clientId: args.clientId, userId: { $exists: false } },
     { $set: { userId: args.userId } }
   );
-  return result.modifiedCount;
+  const modifiedCount = result.modifiedCount;
+  emit(args, modifiedCount, modifiedCount > 0 ? "merged" : "no_match");
+  return modifiedCount;
 }

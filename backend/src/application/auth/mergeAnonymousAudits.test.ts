@@ -1,6 +1,11 @@
 import mongoose from "mongoose";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import { AuditModel } from "@/infrastructure/db/AuditModel";
+import { logger } from "@/config/logger";
+import {
+  authAnonymousAuditsMergeTotal,
+  authAnonymousAuditsMovedTotal,
+} from "@/infrastructure/metrics/registry";
 import { mergeAnonymousAudits } from "./mergeAnonymousAudits";
 
 describe("mergeAnonymousAudits", () => {
@@ -56,5 +61,91 @@ describe("mergeAnonymousAudits", () => {
       userId: new mongoose.Types.ObjectId(),
     });
     expect(moved).toBe(0);
+  });
+
+  describe("observability", () => {
+    let logSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      authAnonymousAuditsMergeTotal.reset();
+      authAnonymousAuditsMovedTotal.reset();
+      logSpy = jest.spyOn(logger, "info").mockImplementation(() => undefined as never);
+    });
+
+    afterEach(() => {
+      logSpy.mockRestore();
+    });
+
+    async function readCounter(
+      counter: typeof authAnonymousAuditsMergeTotal | typeof authAnonymousAuditsMovedTotal,
+      labels?: Record<string, string>
+    ): Promise<number> {
+      const data = await counter.get();
+      const match = labels
+        ? data.values.find((v) => {
+            const vLabels = v.labels as Record<string, string | number>;
+            return Object.entries(labels).every(([k, val]) => vLabels[k] === val);
+          })
+        : data.values[0];
+      return match?.value ?? 0;
+    }
+
+    it("increments merge_total{outcome=merged} when audits are migrated", async () => {
+      const userId = new mongoose.Types.ObjectId();
+      await AuditModel.create([
+        { publicId: "a", url: "https://x", clientId: "cid-1" },
+        { publicId: "b", url: "https://y", clientId: "cid-1" },
+      ]);
+      await mergeAnonymousAudits({ clientId: "cid-1", userId });
+      expect(await readCounter(authAnonymousAuditsMergeTotal, { outcome: "merged" })).toBe(1);
+    });
+
+    it("increments merge_total{outcome=no_match} when clientId has no anonymous audits", async () => {
+      await mergeAnonymousAudits({
+        clientId: "ghost",
+        userId: new mongoose.Types.ObjectId(),
+      });
+      expect(await readCounter(authAnonymousAuditsMergeTotal, { outcome: "no_match" })).toBe(1);
+    });
+
+    it("increments merge_total{outcome=skipped} when clientId is empty", async () => {
+      await mergeAnonymousAudits({
+        clientId: "",
+        userId: new mongoose.Types.ObjectId(),
+      });
+      expect(await readCounter(authAnonymousAuditsMergeTotal, { outcome: "skipped" })).toBe(1);
+    });
+
+    it("adds modifiedCount to moved_total", async () => {
+      const userId = new mongoose.Types.ObjectId();
+      await AuditModel.create([
+        { publicId: "a", url: "https://x", clientId: "cid-2" },
+        { publicId: "b", url: "https://y", clientId: "cid-2" },
+        { publicId: "c", url: "https://z", clientId: "cid-2" },
+      ]);
+      await mergeAnonymousAudits({ clientId: "cid-2", userId });
+      expect(await readCounter(authAnonymousAuditsMovedTotal)).toBe(3);
+    });
+
+    it("emits a structured log with userId, clientId, modifiedCount, outcome", async () => {
+      const userId = new mongoose.Types.ObjectId();
+      await AuditModel.create({
+        publicId: "x",
+        url: "https://x",
+        clientId: "cid-log",
+      });
+      await mergeAnonymousAudits({ clientId: "cid-log", userId });
+
+      expect(logSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: "auth.merge_anonymous_audits",
+          userId: userId.toString(),
+          clientId: "cid-log",
+          modifiedCount: 1,
+          outcome: "merged",
+        }),
+        expect.any(String)
+      );
+    });
   });
 });
