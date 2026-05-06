@@ -22,7 +22,7 @@ export function Footer() {
           <Logo variant="mark" size={22} />
           <div className="flex flex-col">
             <span className="font-serif text-base leading-none">{copy.brand.name}</span>
-            <span className="mt-1 text-xs text-ink/60">{copy.footer.builtWith}</span>
+            <span className="mt-1 text-xs text-ink/70">{copy.footer.builtWith}</span>
           </div>
         </div>
 
