@@ -12,9 +12,31 @@ concurrency:
 
 jobs:
   playwright:
-    name: Playwright (smoke + axe)
+    name: Playwright (smoke + axe + auth)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    # Service containers exposing the backing stores the API needs at
+    # boot. Starting these via `services:` keeps the workflow declarative
+    # and avoids docker-compose just to sidecar two databases.
+    services:
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' || mongo --quiet --eval 'db.runCommand({ ping: 1 }).ok'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 6
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 6
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -29,15 +51,58 @@ jobs:
         run: npx playwright install --with-deps chromium
         working-directory: frontend
 
+      # Build the API + worker so we can boot a real backend behind the
+      # frontend. NODE_ENV is left at its default ("development") so the
+      # /api/auth/__test/last-link hatch is mounted — the auth.spec.ts
+      # depends on it to read magic links without a real inbox.
+      - name: Build backend
+        run: npm run build --workspace backend
+
+      - name: Start backend (api) in background
+        env:
+          NODE_ENV: development
+          MONGO_URI: mongodb://localhost:27017/euthus_e2e
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          PORT: 4000
+          LOG_LEVEL: warn
+          WEB_BASE_URL: http://localhost:4000
+          APP_REDIRECT_URL: http://localhost:3000/app
+          CORS_ORIGIN: http://localhost:3000
+        run: |
+          npm run start --workspace backend > backend.log 2>&1 &
+          echo "backend pid: $!"
+
+      - name: Wait for /ready
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:4000/ready >/dev/null 2>&1; then
+              echo "api ready after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "api never became ready; tail of backend.log:"
+          tail -200 backend.log || true
+          exit 1
+
       - name: Build frontend
         run: npm run build --workspace frontend
         env:
           NEXT_PUBLIC_API_URL: http://localhost:4000
 
       - name: Run Playwright
-        run: npm run e2e --workspace frontend
         env:
           CI: "1"
+          # auth.spec.ts probes this URL for the test hatch and skips
+          # cleanly when unreachable; setting it so the spec actually
+          # exercises the magic-link flow rather than self-skipping.
+          PLAYWRIGHT_API_URL: http://localhost:4000
+        run: npm run e2e --workspace frontend
+
+      - name: Tail backend log on failure
+        if: failure()
+        run: tail -500 backend.log || true
 
       - name: Upload Playwright report
         if: always()
@@ -46,3 +111,11 @@ jobs:
           name: playwright-report
           path: frontend/playwright-report/
           retention-days: 14
+
+      - name: Upload backend log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-log
+          path: backend.log
+          retention-days: 7
