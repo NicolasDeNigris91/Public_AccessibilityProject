@@ -268,6 +268,38 @@ describe("authRouter", () => {
     });
   });
 
+  describe("cookieDomain wiring", () => {
+    it("emits Domain=<configured> on /verify Set-Cookie when cookieDomain is set", async () => {
+      const domainApp = buildApp({ sender, cookieDomain: ".euthus.test" });
+      await request(domainApp).post("/api/auth/magic-link").send({ email: "a@b.com" });
+      const token = new URL(sender.inbox[0]?.link ?? "").searchParams.get("token") ?? "";
+      const r = await request(domainApp).get(`/api/auth/verify?token=${token}`);
+      expect(r.status).toBe(302);
+      expect(r.headers["set-cookie"]?.[0] ?? "").toContain("Domain=.euthus.test");
+    });
+
+    it("emits Domain=<configured> on /logout clear-cookie when cookieDomain is set", async () => {
+      const domainApp = buildApp({ sender, cookieDomain: ".euthus.test" });
+      const r = await request(domainApp).post("/api/auth/logout");
+      expect(r.status).toBe(204);
+      expect(r.headers["set-cookie"]?.[0] ?? "").toContain("Domain=.euthus.test");
+    });
+  });
+
+  describe("__test/last-link normalisation", () => {
+    it("trims whitespace on the email query so inbox lookup matches the stored value", async () => {
+      const inboxApp = buildApp({
+        sender,
+        lastLinkLookup: (email: string): string | undefined =>
+          [...sender.inbox].reverse().find((m) => m.to === email)?.link,
+      });
+      await request(inboxApp).post("/api/auth/magic-link").send({ email: "a@b.com" });
+      const r = await request(inboxApp).get("/api/auth/__test/last-link?email=%20%20a@b.com%20%20");
+      expect(r.status).toBe(200);
+      expect(r.body.link).toMatch(/\/api\/auth\/verify\?token=/);
+    });
+  });
+
   describe("magic-link rate limit", () => {
     it("429s after exceeding the per-(ip, email) cap", async () => {
       const redis = new RedisMock() as unknown as Redis;

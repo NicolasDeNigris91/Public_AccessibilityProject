@@ -127,7 +127,7 @@ describe("mergeAnonymousAudits", () => {
       expect(await readCounter(authAnonymousAuditsMovedTotal)).toBe(3);
     });
 
-    it("emits a structured log with userId, clientId, modifiedCount, outcome", async () => {
+    it("emits a structured log with userId, clientId, modifiedCount, outcome and the literal 'merge_anonymous_audits' message", async () => {
       const userId = new mongoose.Types.ObjectId();
       await AuditModel.create({
         publicId: "x",
@@ -144,8 +144,25 @@ describe("mergeAnonymousAudits", () => {
           modifiedCount: 1,
           outcome: "merged",
         }),
-        expect.any(String)
+        "merge_anonymous_audits"
       );
+    });
+
+    it("never increments moved_total when modifiedCount is 0 (no .inc(0) noise)", async () => {
+      const incSpy = jest.spyOn(authAnonymousAuditsMovedTotal, "inc");
+      try {
+        await mergeAnonymousAudits({
+          clientId: "ghost",
+          userId: new mongoose.Types.ObjectId(),
+        });
+        await mergeAnonymousAudits({
+          clientId: "",
+          userId: new mongoose.Types.ObjectId(),
+        });
+        expect(incSpy).not.toHaveBeenCalled();
+      } finally {
+        incSpy.mockRestore();
+      }
     });
   });
 });
