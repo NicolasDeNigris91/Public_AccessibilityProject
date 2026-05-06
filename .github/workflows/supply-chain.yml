@@ -1,0 +1,86 @@
+name: Supply chain (SBOM + attestation)
+
+# Triggered on every release tag (rc and stable). Generates a CycloneDX
+# SBOM of the production lockfile, produces a sigstore attestation
+# bound to that SBOM via GitHub OIDC (keyless — no long-lived signing
+# keys to rotate), and uploads both as assets on the GitHub Release
+# created by changesets/release.yml.
+#
+# Anyone can verify the chain without our help:
+#
+#   gh attestation verify sbom.cdx.json --owner NicolasDeNigris91
+#
+# That confirms the SBOM was produced by this workflow on this repo at
+# this tag, signed by sigstore's transparency log. The verb here is
+# "attestation," not "signature": there is no private key, and the
+# trust anchor is GitHub's OIDC identity issuer + the public Rekor log.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write # upload assets to the release
+  id-token: write # mint OIDC token for sigstore signing
+  attestations: write # write attestation to the GitHub attestations API
+
+concurrency:
+  group: supply-chain-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  sbom-and-attest:
+    name: SBOM + sigstore attestation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # Production-only install so the SBOM reflects what actually ships,
+      # not the build-time toolchain. CycloneDX format (CDX 1.6) is the
+      # OWASP-recommended SBOM schema and is what most downstream
+      # consumers (Trivy, Grype, Dependency-Track) parse.
+      - name: Install production deps
+        run: npm ci --omit=dev --workspaces --include-workspace-root
+
+      - name: Generate CycloneDX SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          format: cyclonedx-json
+          output-file: sbom.cdx.json
+          # Skip the scan of build/test artifacts; the npm tree is the
+          # ground truth for what we ship.
+          path: ./
+
+      # Attestation chain: the action mints a short-lived sigstore
+      # certificate from GitHub's OIDC token, signs the SBOM digest,
+      # and writes the bundle to GitHub's attestations API. Verifiable
+      # by anyone via `gh attestation verify`.
+      - name: Attest SBOM (sigstore keyless)
+        uses: actions/attest-sbom@v2
+        with:
+          subject-path: sbom.cdx.json
+          sbom-path: sbom.cdx.json
+
+      # Surface the SBOM on the GitHub Release page so consumers don't
+      # need to know the attestations API to fetch it. The release was
+      # already created by changesets in release.yml; we attach assets.
+      - name: Upload SBOM to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${GITHUB_REF_NAME}" sbom.cdx.json --clobber
+
+      # Provenance attestation for the source tree at the tagged commit.
+      # Distinct from the SBOM attestation: provenance answers "who
+      # built this and how," SBOM answers "what's inside it."
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: sbom.cdx.json
