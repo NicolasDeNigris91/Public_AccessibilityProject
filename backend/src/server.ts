@@ -24,6 +24,7 @@ import { errorHandler } from "@/interfaces/http/middlewares/errorHandler";
 import { requestId } from "@/interfaces/http/middlewares/requestId";
 import { optionalSession } from "@/interfaces/http/middlewares/optionalSession";
 import { ipEmailRateLimit } from "@/interfaces/http/middlewares/ipEmailRateLimit";
+import { ipRateLimit } from "@/interfaces/http/middlewares/ipRateLimit";
 import { mountSwagger } from "@/interfaces/http/swagger";
 import { mountQueuesUI } from "@/interfaces/http/admin/queuesUI";
 import { auditQueue } from "@/infrastructure/queue/auditQueue";
@@ -134,6 +135,12 @@ async function main() {
         max: env.AUTH_RATE_LIMIT_MAX,
         windowMs: env.AUTH_RATE_LIMIT_WINDOW_MS,
         keyPrefix: "rl:auth:magic-link",
+      }),
+      verifyRateLimiter: ipRateLimit({
+        redis: redisConnection,
+        max: env.AUTH_VERIFY_RATE_LIMIT_MAX,
+        windowMs: env.AUTH_VERIFY_RATE_LIMIT_WINDOW_MS,
+        keyPrefix: "rl:auth:verify",
       }),
       ...(linkCapture ? { lastLinkLookup: (e: string) => linkCapture.lookup(e) } : {}),
     })

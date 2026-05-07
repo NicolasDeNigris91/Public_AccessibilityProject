@@ -1,5 +1,5 @@
 import "express-async-errors";
-import express from "express";
+import express, { type RequestHandler } from "express";
 import cookieParser from "cookie-parser";
 import request from "supertest";
 import mongoose from "mongoose";
@@ -24,7 +24,15 @@ interface BuildAppOpts {
   cookieDomain?: string;
   lastLinkLookup?: AuthRouterDeps["lastLinkLookup"];
   magicLinkRateLimiter?: AuthRouterDeps["magicLinkRateLimiter"];
+  verifyRateLimiter?: AuthRouterDeps["verifyRateLimiter"];
 }
+
+// Tests inject pass-through stubs by default so the in-memory rate-limit
+// fallbacks baked into auth.ts (which exist to satisfy CodeQL when the
+// production DI doesn't wire a Redis-backed limiter) don't squash tests
+// that legitimately make many requests from the same IP. Tests that
+// exercise rate-limiting pass real limiters explicitly.
+const passThroughLimiter: RequestHandler = (_req, _res, next) => next();
 
 function buildApp(opts: BuildAppOpts): express.Express {
   const app = express();
@@ -44,7 +52,8 @@ function buildApp(opts: BuildAppOpts): express.Express {
       magicLinkTtlMs: 15 * 60_000,
       sessionTtlMs: 30 * 86_400_000,
       ...(opts.lastLinkLookup ? { lastLinkLookup: opts.lastLinkLookup } : {}),
-      ...(opts.magicLinkRateLimiter ? { magicLinkRateLimiter: opts.magicLinkRateLimiter } : {}),
+      magicLinkRateLimiter: opts.magicLinkRateLimiter ?? passThroughLimiter,
+      verifyRateLimiter: opts.verifyRateLimiter ?? passThroughLimiter,
     })
   );
   app.use(errorHandler);

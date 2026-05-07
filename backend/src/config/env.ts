@@ -51,6 +51,8 @@ const schema = z.object({
     .int()
     .positive()
     .default(60 * 60 * 1000),
+  AUTH_VERIFY_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(30),
+  AUTH_VERIFY_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60 * 1000),
   SESSION_TTL_MS: z.coerce
     .number()
     .int()
