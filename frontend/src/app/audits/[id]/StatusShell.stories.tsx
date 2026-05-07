@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { ReauditAlert, StatusShell } from "./StatusShell";
+import { StatusShell } from "./StatusShell";
 import { Button } from "@/components/ui/Button";
 
 const meta = {

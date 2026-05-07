@@ -10,6 +10,9 @@ concurrency:
   group: storybook-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   build:
     name: Build Storybook static

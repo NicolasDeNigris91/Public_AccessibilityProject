@@ -24,6 +24,9 @@ concurrency:
   group: mutation-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   stryker:
     name: Stryker (backend domain)
