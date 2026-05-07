@@ -1,4 +1,5 @@
 import { Router, type RequestHandler } from "express";
+import rateLimit from "express-rate-limit";
 import { z } from "zod";
 import mongoose from "mongoose";
 import { AppError } from "../middlewares/errorHandler";
@@ -33,20 +34,43 @@ export interface AuthRouterDeps {
   /**
    * Optional per-(ip, email) rate limiter, mounted before the magic-link
    * handler. Server.ts wires the Redis-backed `ipEmailRateLimit` here in
-   * normal runs; tests can pass a stub. When absent the route is unbounded
-   * apart from the upstream IP-level limit.
+   * normal runs; tests can pass a stub. When absent the in-memory fallback
+   * below runs so the route is never unbounded.
    */
   magicLinkRateLimiter?: RequestHandler;
+  /**
+   * Optional per-IP rate limiter for GET /verify (token brute-force defense).
+   * Same DI shape as `magicLinkRateLimiter`. Server.ts wires the Redis-backed
+   * `ipRateLimit` here in normal runs; tests can pass a stub. When absent the
+   * in-memory fallback below runs.
+   */
+  verifyRateLimiter?: RequestHandler;
 }
 
-const passThrough: RequestHandler = (_req, _res, next) => next();
+// In-memory fallbacks. These run only when DI doesn't pass a Redis-backed
+// limiter (e.g. unit tests, or a misconfigured env). Production server.ts
+// always overrides with cluster-safe Redis-backed limiters; these defaults
+// exist so the route is never unbounded — closes the CodeQL js/missing-rate-limiting
+// alerts on /magic-link and /verify.
+const defaultMagicLinkLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+const defaultVerifyLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 const EmailBody = z.object({ email: z.string().email().max(254) });
 
 export function buildAuthRouter(deps: AuthRouterDeps): Router {
   const r = Router();
 
-  r.post("/magic-link", deps.magicLinkRateLimiter ?? passThrough, async (req, res) => {
+  r.post("/magic-link", deps.magicLinkRateLimiter ?? defaultMagicLinkLimiter, async (req, res) => {
     if (!deps.sender) {
       throw new AppError(503, "auth/email-not-configured", {
         hint: "Set EMAIL_PROVIDER=resend plus RESEND_API_KEY and EMAIL_FROM in this environment.",
@@ -73,7 +97,7 @@ export function buildAuthRouter(deps: AuthRouterDeps): Router {
     res.status(202).end();
   });
 
-  r.get("/verify", async (req, res) => {
+  r.get("/verify", deps.verifyRateLimiter ?? defaultVerifyLimiter, async (req, res) => {
     const rawToken = typeof req.query.token === "string" ? req.query.token : "";
     if (!rawToken) throw new AppError(400, "missing_token");
     let out;
