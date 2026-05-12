@@ -40,8 +40,9 @@
     "eslint-config-next": "^15.5.15",
     "jest": "^30.3.0",
     "jest-environment-jsdom": "^30.3.0",
+    "@tailwindcss/postcss": "^4.3.0",
     "postcss": "^8.4.39",
-    "tailwindcss": "^3.4.6",
+    "tailwindcss": "^4.3.0",
     "ts-jest": "^29.4.9",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.4"
