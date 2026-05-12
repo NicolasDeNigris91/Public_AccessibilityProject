@@ -27,6 +27,13 @@ updates:
     groups:
       minor-and-patch:
         update-types: ["minor", "patch"]
+    ignore:
+      # protobufjs has an open advisory with no patched version available
+      # (all published releases through 8.0.1 are listed as affected). The
+      # daily security scan retries and fails the workflow because
+      # `fix_available: false`. Re-enable this ignore when upstream publishes
+      # a fixed release. Tracking: github.com/protobufjs/protobuf.js
+      - dependency-name: "protobufjs"
 
   - package-ecosystem: npm
     directory: /backend
