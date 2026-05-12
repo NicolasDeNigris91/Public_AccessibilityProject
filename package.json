@@ -43,6 +43,7 @@
     "basic-ftp": "^6.0.1",
     "postcss": "^8.5.14",
     "tmp": "^0.2.5",
+    "protobufjs": "^8.0.3",
     "eslint": {
       "ajv": "^6.12.6"
     },
