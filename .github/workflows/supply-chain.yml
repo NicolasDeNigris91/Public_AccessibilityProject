@@ -45,14 +45,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           # On push.tags this is the tag ref already; on workflow_dispatch
           # we explicitly check out the requested tag so the SBOM matches
           # what was shipped, not whatever main is at right now.
           ref: ${{ inputs.tag || github.ref }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: npm
@@ -82,7 +82,7 @@ jobs:
       # and writes the bundle to GitHub's attestations API. Verifiable
       # by anyone via `gh attestation verify`.
       - name: Attest SBOM (sigstore keyless)
-        uses: actions/attest-sbom@v2
+        uses: actions/attest-sbom@v4
         with:
           subject-path: sbom.cdx.json
           sbom-path: sbom.cdx.json
@@ -101,6 +101,6 @@ jobs:
       # Distinct from the SBOM attestation: provenance answers "who
       # built this and how," SBOM answers "what's inside it."
       - name: Attest build provenance
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: sbom.cdx.json
