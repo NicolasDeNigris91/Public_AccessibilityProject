@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-/* eslint-disable no-console */
 /**
  * Bundle budget gate. Reads .next/app-build-manifest.json + the static chunk
  * sizes on disk and fails the build when the gzipped first-load JS for any
