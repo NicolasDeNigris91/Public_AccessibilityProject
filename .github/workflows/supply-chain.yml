@@ -45,7 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           # On push.tags this is the tag ref already; on workflow_dispatch
           # we explicitly check out the requested tag so the SBOM matches
