@@ -42,7 +42,7 @@ jobs:
           echo "Configure repo secrets to enable per-PR Railway envs."
           exit 0
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         if: ${{ env.RAILWAY_TOKEN != '' }}
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
