@@ -21,14 +21,14 @@
     "prepare": "husky"
   },
   "devDependencies": {
-    "@changesets/cli": "^2.27.9",
+    "@changesets/cli": "^2.31.1",
     "@commitlint/cli": "^19.5.0",
-    "@commitlint/config-conventional": "^21.0.0",
-    "@storybook/addon-a11y": "^10.3.6",
-    "@storybook/nextjs-vite": "^10.3.6",
+    "@commitlint/config-conventional": "^21.2.0",
+    "@storybook/addon-a11y": "^10.5.5",
+    "@storybook/nextjs-vite": "^10.5.5",
     "husky": "^9.1.6",
     "lint-staged": "^15.2.10",
-    "prettier": "^3.3.3",
+    "prettier": "^3.9.6",
     "storybook": "^10.3.6",
     "ts-node": "^10.9.2",
     "vite": "^7.3.2"
