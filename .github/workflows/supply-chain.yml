@@ -45,14 +45,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           # On push.tags this is the tag ref already; on workflow_dispatch
           # we explicitly check out the requested tag so the SBOM matches
           # what was shipped, not whatever main is at right now.
           ref: ${{ inputs.tag || github.ref }}
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 20
           cache: npm
