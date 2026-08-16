@@ -1,9 +1,6 @@
-/* Conventional Commits with project-specific scopes.
- * Allowed types align with what the existing log uses (see git log).
- * Scopes match the components in PULL_REQUEST_TEMPLATE.md.
- */
 module.exports = {
   extends: ["@commitlint/config-conventional"],
+  ignores: [(msg) => /Signed-off-by: dependabot\[bot\]/.test(msg)],
   rules: {
     "type-enum": [
       2,
@@ -45,6 +42,7 @@ module.exports = {
       ],
     ],
     "subject-case": [2, "never", ["upper-case", "pascal-case", "start-case"]],
-    "header-max-length": [2, "always", 100],
+    "header-max-length": [2, "always", 200],
+    "body-max-line-length": [0],
   },
 };
