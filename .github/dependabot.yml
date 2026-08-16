@@ -9,7 +9,7 @@ updates:
     commit-message:
       prefix: "ci"
       include: scope
-    labels: ["dependencies", "ci"]
+    labels: ["dependencies", "ci", "skip-changeset"]
     groups:
       actions:
         patterns: ["*"]
@@ -23,7 +23,7 @@ updates:
     commit-message:
       prefix: "deps"
       include: scope
-    labels: ["dependencies", "npm"]
+    labels: ["dependencies", "npm", "skip-changeset"]
     groups:
       minor-and-patch:
         update-types: ["minor", "patch"]
@@ -37,7 +37,7 @@ updates:
     commit-message:
       prefix: "deps(backend)"
       include: scope
-    labels: ["dependencies", "npm", "backend"]
+    labels: ["dependencies", "npm", "backend", "skip-changeset"]
     groups:
       backend-minor-and-patch:
         update-types: ["minor", "patch"]
@@ -51,7 +51,7 @@ updates:
     commit-message:
       prefix: "deps(frontend)"
       include: scope
-    labels: ["dependencies", "npm", "frontend"]
+    labels: ["dependencies", "npm", "frontend", "skip-changeset"]
     groups:
       frontend-minor-and-patch:
         update-types: ["minor", "patch"]
@@ -64,7 +64,7 @@ updates:
     commit-message:
       prefix: "deps(docker)"
       include: scope
-    labels: ["dependencies", "docker", "backend"]
+    labels: ["dependencies", "docker", "backend", "skip-changeset"]
 
   - package-ecosystem: docker
     directory: /frontend
@@ -74,4 +74,4 @@ updates:
     commit-message:
       prefix: "deps(docker)"
       include: scope
-    labels: ["dependencies", "docker", "frontend"]
+    labels: ["dependencies", "docker", "frontend", "skip-changeset"]
