@@ -31,7 +31,7 @@
     "prettier": "^3.3.3",
     "storybook": "^10.3.6",
     "ts-node": "^10.9.2",
-    "vite": "^7.3.2"
+    "vite": "^8.0.16"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,cjs,mjs,json,md,yml,yaml,css}": [
