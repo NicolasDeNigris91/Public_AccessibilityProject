@@ -19,11 +19,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 20
           cache: npm
@@ -32,7 +32,7 @@ jobs:
         run: npm ci
 
       - name: Create Release PR or publish to GitHub Releases
-        uses: changesets/action@63a615b9cd06ba9a3e6d13796c7fbcb080a60a0b # v1
+        uses: changesets/action@198f833dd7d863100ea6e28967bc9a9fdefadb0a # v1
         with:
           # `version` updates package.json + CHANGELOG.md from pending changesets
           # and opens / updates a "Version Packages" PR. Merging that PR triggers
