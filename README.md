@@ -15,7 +15,7 @@ Monorepo with clean separation of concerns:
 - **`/backend`**: Node.js + TypeScript + Express. Two processes from the same image:
   - `api`: REST + Swagger, enqueues audit jobs
   - `worker`: BullMQ consumer, runs Puppeteer + axe-core
-- **`/frontend`**: Next.js 14 dashboard
+- **`/frontend`**: Next.js 15 dashboard
 - **MongoDB**: audit persistence (via Mongoose)
 - **Redis**: BullMQ queue backend
 
@@ -39,7 +39,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the system design, [docs/RO
 
 | Layer     | Tech                             |
 | --------- | -------------------------------- |
-| Runtime   | Node.js 20, Next.js 14, React 18 |
+| Runtime   | Node.js 20, Next.js 15, React 19 |
 | Language  | TypeScript (strict)              |
 | Framework | Express 4, Mongoose 8            |
 | Queue     | BullMQ + Redis 7                 |
@@ -58,7 +58,7 @@ Five services in one Railway project:
 | ---------- | --------------------------- | --------------------------- |
 | `api`      | `backend/Dockerfile`        | exposes HTTP, custom domain |
 | `worker`   | `backend/Dockerfile.worker` | queue consumer, Puppeteer   |
-| `frontend` | `frontend/Dockerfile`       | Next.js 14 dashboard        |
+| `frontend` | `frontend/Dockerfile`       | Next.js 15 dashboard        |
 | `mongo`    | Railway MongoDB plugin      | auto-provisions `MONGO_URL` |
 | `redis`    | Railway Redis plugin        | auto-provisions `REDIS_URL` |
 
