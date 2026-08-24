@@ -32,7 +32,7 @@ jobs:
         run: npm ci
 
       - name: Create Release PR or publish to GitHub Releases
-        uses: changesets/action@198f833dd7d863100ea6e28967bc9a9fdefadb0a # v1
+        uses: changesets/action@8488615a623b1b9c987934bb89eae8af6a946ac1 # v1
         with:
           # `version` updates package.json + CHANGELOG.md from pending changesets
           # and opens / updates a "Version Packages" PR. Merging that PR triggers
