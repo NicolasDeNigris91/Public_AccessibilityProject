@@ -1,9 +1,9 @@
-FROM node:20-slim AS deps
+FROM node:26-slim AS deps
 WORKDIR /app
 COPY package.json ./
 RUN npm install
 
-FROM node:20-slim AS builder
+FROM node:26-slim AS builder
 WORKDIR /app
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
@@ -11,7 +11,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
 
-FROM node:20-slim
+FROM node:26-slim
 WORKDIR /app
 ENV NODE_ENV=production
 

@@ -1,5 +1,5 @@
 # --- builder ---
-FROM node:20-slim AS builder
+FROM node:26-slim AS builder
 WORKDIR /app
 COPY package.json tsconfig.json ./
 RUN npm install
@@ -7,7 +7,7 @@ COPY src ./src
 RUN npm run build
 
 # --- runtime (HTTP API only; Puppeteer runs in the dedicated worker image) ---
-FROM node:20-slim
+FROM node:26-slim
 ENV NODE_ENV=production \
     PUPPETEER_SKIP_DOWNLOAD=true
 
